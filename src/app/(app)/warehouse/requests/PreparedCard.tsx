@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 import { fmtDMY } from "@/lib/ui";
 import { DRIVERS } from "@/lib/drivers";
+import Dropdown from "@/components/Dropdown";
 import { shipToEvent } from "../../events/[id]/lifecycle";
 
 type Ev = { id: string; name: string; client: string | null; location: string | null; live_start: string | null };
@@ -42,11 +43,10 @@ export default function PreparedCard({ event, total, qty }: { event: Ev; total: 
 
       {err && <p className="mt-2 text-[11px] text-rose-300">{err}</p>}
 
-      <select value={driver} onChange={(e) => setDriver(e.target.value)}
-        className="mt-3 w-full rounded-xl glass px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-900">
-        <option value="">Choose driver…</option>
-        {DRIVERS.map((d) => <option key={d} value={d}>{d}</option>)}
-      </select>
+      <div className="mt-3">
+        <Dropdown value={driver} onChange={setDriver} placeholder="Choose driver…"
+          options={DRIVERS.map((d) => ({ value: d, label: d }))} />
+      </div>
 
       <button disabled={pending || !driver} onClick={ship}
         className="btn-primary grad text-white text-sm font-semibold rounded-xl px-4 py-2.5 mt-2 w-full flex items-center justify-center gap-2 disabled:opacity-50">

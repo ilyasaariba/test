@@ -1,23 +1,9 @@
 import Link from "next/link";
 import { getProfile } from "@/lib/dal";
 import { createClient } from "@/lib/supabase/server";
-import { fmtRange } from "@/lib/ui";
+import { fmtRange, eventBadge, isOverdue } from "@/lib/ui";
 import CountUp from "@/components/CountUp";
 import BossDashboard from "./BossDashboard";
-
-const PILL: Record<string, { label: string; cls: string; live?: boolean }> = {
-  draft: { label: "Draft", cls: "bg-slate-500/15 text-slate-300 ring-slate-400/30" },
-  sent_to_warehouse: { label: "Requested", cls: "bg-sky-500/15 text-sky-300 ring-sky-400/30" },
-  prepared: { label: "Prepared", cls: "bg-blue-500/15 text-blue-300 ring-blue-400/30" },
-  shipped: { label: "Shipped", cls: "bg-amber-500/15 text-amber-300 ring-amber-400/30" },
-  received_on_site: { label: "On site", cls: "bg-teal-500/15 text-teal-300 ring-teal-400/30" },
-  in_progress: { label: "Live", cls: "bg-violet-500/15 text-violet-300 ring-violet-400/30", live: true },
-  returning: { label: "Returning", cls: "bg-cyan-500/15 text-cyan-300 ring-cyan-400/30" },
-  reconciliation: { label: "Checking returns", cls: "bg-orange-500/15 text-orange-300 ring-orange-400/30" },
-  archived: { label: "Done", cls: "bg-emerald-500/15 text-emerald-300 ring-emerald-400/30" },
-  cancelled: { label: "Cancelled", cls: "bg-rose-500/15 text-rose-300 ring-rose-400/30" },
-};
-const pill = (s: string) => PILL[s] ?? PILL.draft;
 
 function progressPct(e: any): number {
   const s = e.montage_start ?? e.live_start;
@@ -74,7 +60,7 @@ export default async function DashboardPage() {
       .order("live_end", { ascending: false, nullsFirst: false }),
     supabase.from("equipment").select("total_quantity"),
     supabase.from("missing_items").select("id,is_critical,quantity, equipment(name)").eq("status", "missing"),
-    supabase.from("transfers").select("id,quantity, equipment(name)").eq("status", "planned"),
+    supabase.from("transfers").select("id,quantity, equipment(name)").in("status", ["requested", "sent"]),
   ]);
 
   const events = eventsRes.data ?? [];
@@ -83,7 +69,9 @@ export default async function DashboardPage() {
   const transfers = transfersRes.data ?? [];
 
   const active = events.filter((e: any) => !["archived", "cancelled"].includes(e.status)).length;
-  const liveEvents = events.filter((e: any) => e.status === "in_progress");
+  // A "Live" event whose scheduled end has passed is overdue, not live.
+  const liveEvents = events.filter((e: any) => e.status === "in_progress" && !isOverdue(e));
+  const overdueEvents = events.filter((e: any) => isOverdue(e));
   const liveCount = liveEvents.length;
   const criticalMissing = missing.filter((m: any) => m.is_critical);
 
@@ -139,7 +127,7 @@ export default async function DashboardPage() {
           <Stat label="Equipment units" value={units} icon="inventory_2" href="/warehouse" sub={<span className="text-slate-500">owned in warehouse</span>} />
         </div>
         <div className="reveal" style={{ animationDelay: ".36s" }}>
-          <Stat label="Planned transfers" value={transfers.length} icon="swap_horiz" tone="amber" href={transfersHref} sub={<span className="text-amber-400/80">need a technician</span>} />
+          <Stat label="Active transfers" value={transfers.length} icon="swap_horiz" tone="amber" href={transfersHref} sub={<span className="text-amber-400/80">requested + in transit</span>} />
         </div>
         <div className="reveal" style={{ animationDelay: ".42s" }}>
           <Stat label="Missing items" value={missing.length} icon="error" tone="rose" href={missingHref}
@@ -158,7 +146,7 @@ export default async function DashboardPage() {
           </div>
           <div className="divide-y divide-white/5">
             {events.length ? events.slice(0, 6).map((e: any) => {
-              const p = pill(e.status);
+              const p = eventBadge(e);
               return (
                 <Link key={e.id} href={`/events/${e.id}`} className="row flex items-center justify-between px-5 py-3.5">
                   <div>
@@ -210,6 +198,15 @@ export default async function DashboardPage() {
           <section className="card glass rounded-2xl p-5 reveal" style={{ animationDelay: ".58s" }}>
             <h2 className="font-bold mb-4">Needs attention</h2>
 
+            {overdueEvents.slice(0, 2).map((e: any) => (
+              <Link key={e.id} href={`/events/${e.id}`} className="block rounded-xl p-4 mb-3 bg-amber-500/10 ring-1 ring-amber-400/25 hover:bg-amber-500/15 transition">
+                <div className="flex items-center gap-2 text-amber-300 font-semibold text-sm">
+                  <span className="ms" style={{ fontSize: 18 }}>schedule</span>Event overdue
+                </div>
+                <p className="text-xs text-amber-200/70 mt-1">{e.name} — ended but still live. End it to send the gear back.</p>
+              </Link>
+            ))}
+
             {criticalMissing.slice(0, 2).map((m: any) => (
               <div key={m.id} className="rounded-xl p-4 mb-3 bg-rose-500/10 ring-1 ring-rose-400/25">
                 <div className="flex items-center gap-2 text-rose-300 font-semibold text-sm">
@@ -222,13 +219,13 @@ export default async function DashboardPage() {
             {transfers.slice(0, 2).map((t: any) => (
               <div key={t.id} className="rounded-xl p-4 mb-3 bg-white/5 ring-1 ring-white/10">
                 <div className="flex items-center gap-2 text-slate-200 font-semibold text-sm">
-                  <span className="ms" style={{ fontSize: 18 }}>swap_horiz</span>Transfer planned
+                  <span className="ms" style={{ fontSize: 18 }}>swap_horiz</span>Transfer in progress
                 </div>
-                <p className="text-xs text-slate-400 mt-1">{t.quantity}× {t.equipment?.name ?? "item"} — needs a technician + time.</p>
+                <p className="text-xs text-slate-400 mt-1">{t.quantity}× {t.equipment?.name ?? "item"} — being moved between events.</p>
               </div>
             ))}
 
-            {!criticalMissing.length && !transfers.length && (
+            {!overdueEvents.length && !criticalMissing.length && !transfers.length && (
               <p className="text-sm text-slate-400">All clear ✨</p>
             )}
           </section>

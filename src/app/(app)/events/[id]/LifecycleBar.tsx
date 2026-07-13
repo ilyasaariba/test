@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, useTransition } from "react";
-import { sendToWarehouse, goLive, endEvent } from "./lifecycle";
+import { sendToWarehouse, goLive, beginTeardown } from "./lifecycle";
 
 const FLOW: [string, string][] = [
   ["draft", "Draft"],
@@ -31,13 +31,16 @@ const STAGE_DESC: Record<string, string> = {
 const SHIPPED_OR_LATER = ["shipped", "received_on_site", "in_progress", "returning", "reconciliation"];
 
 export default function LifecycleBar({
-  eventId, role, status, shipper, isLead,
+  eventId, role, status, shipper, isLead, overdue, overdueLabel, teardownStarted,
 }: {
   eventId: string;
   role: string;
   status: string;
   shipper?: string | null;
   isLead?: boolean;
+  overdue?: boolean;
+  overdueLabel?: string | null;
+  teardownStarted?: boolean;
 }) {
   const [pending, start] = useTransition();
   const [err, setErr] = useState<string | null>(null);
@@ -63,8 +66,10 @@ export default function LifecycleBar({
       return <span className="text-sm text-slate-400 flex items-center gap-1"><span className="ms" style={{ fontSize: 16 }}>south</span>Check the gear in below</span>;
     if (status === "received_on_site" && isEng)
       return <Btn pending={pending} icon="play_arrow" label="Go live" onClick={() => run(() => goLive(eventId))} />;
+    if (status === "in_progress" && isEng && teardownStarted)
+      return <span className="text-sm text-slate-400 flex items-center gap-1"><span className="ms" style={{ fontSize: 16 }}>south</span>Pack the gear below, then end</span>;
     if (status === "in_progress" && isEng)
-      return <Btn pending={pending} icon="stop_circle" label="End event" onClick={() => run(() => endEvent(eventId))} />;
+      return <Btn pending={pending} icon="inventory_2" label="Begin teardown" onClick={() => run(() => beginTeardown(eventId))} />;
 
     // Warehouse acts on its dedicated prep screen.
     if ((status === "sent_to_warehouse" || status === "prepared" || status === "returning" || status === "reconciliation") && isWm)
@@ -114,13 +119,22 @@ export default function LifecycleBar({
 
       {err && <div className="mb-3 rounded-lg bg-rose-500/10 text-rose-300 ring-1 ring-rose-400/30 px-3 py-2 text-sm">{err}</div>}
 
+      {overdue && !teardownStarted && (
+        <div className="mb-3 rounded-lg bg-amber-500/10 text-amber-200 ring-1 ring-amber-400/30 px-3 py-2 text-sm flex items-center gap-2">
+          <span className="ms text-amber-300" style={{ fontSize: 18 }}>schedule</span>
+          <span>
+            Scheduled end has passed{overdueLabel ? <> (ended {overdueLabel})</> : null} — {isEng ? "begin teardown to pack the gear for its return." : "waiting on the engineer to begin teardown."}
+          </span>
+        </div>
+      )}
+
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="min-w-0">
           <p className="text-sm">
             <span className="text-slate-500">Stage · </span>
-            <span className="text-slate-100 font-semibold">{FLOW[idx]?.[1] ?? status}</span>
+            <span className="text-slate-100 font-semibold">{teardownStarted ? "Teardown" : overdue ? "Overdue" : FLOW[idx]?.[1] ?? status}</span>
           </p>
-          <p className="text-xs text-slate-500 mt-0.5">{STAGE_DESC[status] ?? ""}</p>
+          <p className="text-xs text-slate-500 mt-0.5">{teardownStarted ? "Packing the gear to send back to the warehouse." : overdue ? "The event's scheduled end has passed but it's still marked live." : STAGE_DESC[status] ?? ""}</p>
           {shipper && SHIPPED_OR_LATER.includes(status) && (
             <p className="text-xs text-slate-400 mt-1 flex items-center gap-1">
               <span className="ms text-slate-500" style={{ fontSize: 14 }}>local_shipping</span>

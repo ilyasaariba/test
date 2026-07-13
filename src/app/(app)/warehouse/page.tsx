@@ -2,6 +2,7 @@ import { getProfile } from "@/lib/dal";
 import { createClient } from "@/lib/supabase/server";
 import { addEquipment } from "./actions";
 import OutBadge from "./OutBadge";
+import DeleteEquipmentButton from "./DeleteEquipmentButton";
 import WarehouseToolbar from "./WarehouseToolbar";
 import NumberInput from "@/components/NumberInput";
 
@@ -16,7 +17,7 @@ export default async function WarehousePage({
   const { q, filter } = await searchParams;
   const profile = await getProfile();
   const supabase = await createClient();
-  const canEdit = profile.role === "admin" || profile.role === "warehouse_manager"; // warehouse stock = WM/Admin
+  const canEdit = profile.role === "admin" || profile.role === "engineer"; // catalog = Engineer/Admin
 
   const [{ data }, { data: allocRows }] = await Promise.all([
     supabase
@@ -111,6 +112,11 @@ export default async function WarehousePage({
                       <span className="text-slate-500 text-xs"> / {e.owned} avail.</span>
                       {out && <OutBadge committed={e.committed} events={outByEquip[e.equipment_id] ?? []} />}
                     </td>
+                    {canEdit && (
+                      <td className="py-3 pr-4 text-right w-12 align-middle">
+                        <DeleteEquipmentButton id={e.equipment_id} name={e.name} />
+                      </td>
+                    )}
                   </tr>
                 );
               })}

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getProfile } from "@/lib/dal";
 import { createClient } from "@/lib/supabase/server";
-import { statusBadge, fmtRange } from "@/lib/ui";
+import { eventBadge, fmtRange } from "@/lib/ui";
 import EventsToolbar from "./EventsToolbar";
 
 export default async function EventsPage({
@@ -18,14 +18,14 @@ export default async function EventsPage({
   if (isTech) {
     const { data } = await supabase
       .from("event_technicians")
-      .select("events(id,name,client,location,status,live_start,live_end)")
+      .select("events(id,name,client,location,status,live_start,live_end,demontage_end)")
       .eq("user_id", profile.id);
     events = (data ?? []).map((r: any) => r.events).filter(Boolean)
       .sort((a: any, b: any) => (b.live_end ?? "").localeCompare(a.live_end ?? ""));
   } else {
     let query = supabase
       .from("events")
-      .select("id,name,client,location,status,live_start,live_end")
+      .select("id,name,client,location,status,live_start,live_end,demontage_end")
       .order("live_end", { ascending: false, nullsFirst: false });
     if (q) query = query.or(`name.ilike.%${q}%,client.ilike.%${q}%,location.ilike.%${q}%`);
     if (status) query = query.eq("status", status);
@@ -54,7 +54,7 @@ export default async function EventsPage({
 
       <div className="card glass rounded-2xl divide-y divide-white/5 reveal" style={{ animationDelay: ".12s" }}>
         {events.length ? events.map((e) => {
-          const b = statusBadge(e.status);
+          const b = eventBadge(e);
           return (
             <Link key={e.id} href={`/events/${e.id}`} className="row flex items-center justify-between px-5 py-4">
               <div>

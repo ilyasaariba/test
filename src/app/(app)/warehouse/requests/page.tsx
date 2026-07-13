@@ -4,6 +4,7 @@ import { getProfile } from "@/lib/dal";
 import { createClient } from "@/lib/supabase/server";
 import { fmtDMY } from "@/lib/ui";
 import PreparedCard from "./PreparedCard";
+import TopupCard from "./TopupCard";
 
 const GROUPS: { status: string; title: string; hint: string; accent: string; icon: string }[] = [
   { status: "sent_to_warehouse", title: "New requests", hint: "Engineer is waiting — start preparing.", accent: "text-sky-300", icon: "inbox" },
@@ -37,12 +38,37 @@ export default async function WarehouseRequestsPage() {
 
   const byStatus = (s: string) => (events ?? []).filter((e: any) => e.status === s);
 
+  // Mid-event warehouse top-up requests (from_event_id null) awaiting a ship.
+  const { data: topupRows } = await supabase
+    .from("transfers")
+    .select("id,quantity,equipment_name,to_event_name,requested_by_name,created_at")
+    .is("from_event_id", null).eq("status", "requested")
+    .order("created_at", { ascending: true });
+  const topups = (topupRows ?? []).map((t: any) => ({
+    id: t.id, equipmentName: t.equipment_name ?? "gear", quantity: t.quantity,
+    toEventName: t.to_event_name ?? "an event", requestedByName: t.requested_by_name ?? null,
+  }));
+
   return (
     <div className="max-w-4xl space-y-5">
       <div className="reveal" style={{ animationDelay: ".06s" }}>
         <h1 className="text-3xl font-extrabold tracking-tight">Requests</h1>
         <p className="text-slate-400 text-sm mt-1">Prepare and ship equipment for the engineer&apos;s events · {events?.length ?? 0} active</p>
       </div>
+
+      {topups.length > 0 && (
+        <section className="reveal" style={{ animationDelay: ".1s" }}>
+          <div className="flex items-center gap-2 mb-2 px-1">
+            <span className="ms text-fuchsia-300" style={{ fontSize: 18 }}>bolt</span>
+            <h2 className="font-bold">Top-up requests</h2>
+            <span className="text-xs text-slate-500">· {topups.length}</span>
+            <span className="text-[11px] text-slate-500">— extra gear needed mid-event</span>
+          </div>
+          <div className="grid sm:grid-cols-2 gap-3">
+            {topups.map((t) => <TopupCard key={t.id} topup={t} />)}
+          </div>
+        </section>
+      )}
 
       {GROUPS.map((g, gi) => {
         const list = byStatus(g.status);
@@ -104,7 +130,7 @@ export default async function WarehouseRequestsPage() {
         );
       })}
 
-      {!events?.length && (
+      {!events?.length && !topups.length && (
         <div className="card glass rounded-2xl px-5 py-10 text-center reveal" style={{ animationDelay: ".18s" }}>
           <p className="text-sm text-slate-300 font-medium">No active requests.</p>
           <p className="text-xs text-slate-500 mt-1">When an engineer sends an event to the warehouse, it shows up here to prepare.</p>

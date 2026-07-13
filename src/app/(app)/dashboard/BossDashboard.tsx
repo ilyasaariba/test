@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { statusBadge, fmtDMY, fmtRange, ROLE_LABEL } from "@/lib/ui";
+import { eventBadge, isOverdue, fmtDMY, fmtRange, ROLE_LABEL } from "@/lib/ui";
 import CountUp from "@/components/CountUp";
 
 const ACTIVE_EXCLUDE = ["archived", "cancelled"];
@@ -64,11 +64,13 @@ export default async function BossDashboard({ profile }: { profile: { full_name:
 
   // ---- KPIs ----
   const activeEvents = events.filter((e: any) => !ACTIVE_EXCLUDE.includes(e.status));
-  const liveEvents = events.filter((e: any) => e.status === "in_progress");
+  // A "Live" event past its scheduled end is overdue, not live.
+  const liveEvents = events.filter((e: any) => e.status === "in_progress" && !isOverdue(e));
+  const overdueEvents = events.filter((e: any) => isOverdue(e));
   const totalOwned = equip.reduce((s: number, e: any) => s + (e.owned ?? 0), 0);
   const totalOut = equip.reduce((s: number, e: any) => s + (e.committed ?? 0), 0);
   const utilPct = totalOwned ? Math.round((totalOut / totalOwned) * 100) : 0;
-  const plannedTransfers = transfers.filter((t: any) => t.status === "planned").length;
+  const plannedTransfers = transfers.filter((t: any) => ["requested", "sent"].includes(t.status)).length;
   const criticalMissing = missing.filter((m: any) => m.is_critical);
   const rentalUnits = rentals.reduce((s: number, r: any) => s + (r.quantity ?? 0), 0);
   const completed = archives.length;
@@ -115,7 +117,7 @@ export default async function BossDashboard({ profile }: { profile: { full_name:
   const kpis = [
     { label: "Active events", value: activeEvents.length, icon: "event_available", sub: `${liveEvents.length} live now`, tone: "text-violet-300", live: liveEvents.length > 0 },
     { label: "Fleet in use", value: utilPct, suffix: "%", icon: "donut_large", sub: `${totalOut.toLocaleString()} of ${totalOwned.toLocaleString()} units out`, tone: utilTone(utilPct).text },
-    { label: "Planned transfers", value: plannedTransfers, icon: "swap_horiz", sub: "awaiting a technician", tone: "text-amber-300" },
+    { label: "Active transfers", value: plannedTransfers, icon: "swap_horiz", sub: "requested + in transit", tone: "text-amber-300" },
     { label: "Rentals in", value: rentalUnits, icon: "south_west", sub: `${rentals.length} active`, tone: "text-fuchsia-300" },
     { label: "Critical missing", value: criticalMissing.length, icon: "priority_high", sub: `${missing.length} flagged total`, tone: "text-rose-300" },
     { label: "Events delivered", value: completed, icon: "verified", sub: `${archivedUnits.toLocaleString()} units moved`, tone: "text-emerald-300" },
@@ -206,6 +208,12 @@ export default async function BossDashboard({ profile }: { profile: { full_name:
         <section className="card glass rounded-2xl p-5 reveal" style={{ animationDelay: ".3s" }}>
           <h2 className="font-bold mb-4">Needs attention</h2>
           <div className="space-y-3">
+            {overdueEvents.slice(0, 3).map((e: any) => (
+              <Link key={e.id} href={`/events/${e.id}`} className="block rounded-xl p-3 bg-amber-500/10 ring-1 ring-amber-400/25 hover:bg-amber-500/15 transition">
+                <div className="flex items-center gap-2 text-amber-300 font-semibold text-sm"><span className="ms" style={{ fontSize: 16 }}>schedule</span>Event overdue</div>
+                <p className="text-xs text-amber-200/70 mt-0.5">{e.name} — past its scheduled end, still marked live.</p>
+              </Link>
+            ))}
             {criticalMissing.slice(0, 3).map((m: any) => (
               <div key={m.id} className="rounded-xl p-3 bg-rose-500/10 ring-1 ring-rose-400/25">
                 <div className="flex items-center gap-2 text-rose-300 font-semibold text-sm"><span className="ms" style={{ fontSize: 16 }}>priority_high</span>Critical missing</div>
@@ -224,7 +232,7 @@ export default async function BossDashboard({ profile }: { profile: { full_name:
                 <p className="text-xs text-slate-400 mt-0.5">{z.name} — 0 available.</p>
               </div>
             ))}
-            {!criticalMissing.length && !shortfallEvents.length && !zeroStock.length && (
+            {!overdueEvents.length && !criticalMissing.length && !shortfallEvents.length && !zeroStock.length && (
               <p className="text-sm text-slate-400">All clear ✨</p>
             )}
           </div>
@@ -268,7 +276,7 @@ export default async function BossDashboard({ profile }: { profile: { full_name:
           </div>
           <div className="divide-y divide-white/5">
             {activeEvents.slice(0, 8).map((e: any) => {
-              const b = statusBadge(e.status);
+              const b = eventBadge(e);
               const gap = Math.max(0, (sourcedByEvent[e.id]?.needed ?? 0) - (sourcedByEvent[e.id]?.sourced ?? 0));
               return (
                 <Link key={e.id} href={`/events/${e.id}`} className="row flex items-center justify-between px-5 py-3.5 gap-3">

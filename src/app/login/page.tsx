@@ -1,4 +1,5 @@
 import { login } from "./actions";
+import PasswordInput from "./PasswordInput";
 
 export default async function LoginPage({
   searchParams,
@@ -15,11 +16,11 @@ export default async function LoginPage({
       <div className="relative z-10 w-full max-w-sm">
         {/* Brand */}
         <div className="flex flex-col items-center text-center mb-7 reveal" style={{ animationDelay: ".05s" }}>
-          <div className="h-16 w-16 rounded-3xl grad grid place-items-center text-white font-black text-2xl shadow-2xl shadow-violet-700/40">
-            AV
+          <div className="h-16 w-16 rounded-3xl grad grid place-items-center text-white font-black text-xl tracking-tight shadow-2xl shadow-violet-700/40">
+            M212
           </div>
           <h1 className="text-2xl font-extrabold tracking-tight mt-4">
-            AV <span className="grad-text">Logistics</span>
+            M212 <span className="grad-text">Logistics</span>
           </h1>
           <p className="text-slate-400 text-sm mt-1">Every cable. Every speaker. Every event.</p>
         </div>
@@ -35,22 +36,19 @@ export default async function LoginPage({
             </div>
           )}
 
-          <form action={login} className="mt-6 space-y-4">
+          <form action={login} autoComplete="off" className="mt-6 space-y-4">
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wide">Name</label>
               <div className="flex items-center gap-2 glass rounded-xl px-3.5 py-2.5">
                 <span className="ms text-slate-400" style={{ fontSize: 20 }}>person</span>
-                <input name="username" type="text" autoComplete="username" placeholder="e.g. sami"
+                <input name="username" type="text" autoComplete="off" autoCorrect="off" spellCheck={false}
+                  data-lpignore="true" data-1p-ignore="true" placeholder="e.g. sami"
                   className="bg-transparent outline-none text-sm w-full placeholder:text-slate-500" />
               </div>
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wide">Password</label>
-              <div className="flex items-center gap-2 glass rounded-xl px-3.5 py-2.5">
-                <span className="ms text-slate-400" style={{ fontSize: 20 }}>lock</span>
-                <input name="password" type="password" autoComplete="current-password" placeholder="••••••••"
-                  className="bg-transparent outline-none text-sm w-full placeholder:text-slate-500" />
-              </div>
+              <PasswordInput />
             </div>
             <button type="submit"
               className="btn-primary grad w-full py-2.5 rounded-xl text-white text-sm font-semibold flex items-center justify-center gap-2">

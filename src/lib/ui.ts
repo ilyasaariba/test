@@ -25,6 +25,29 @@ export function statusBadge(s: string): Badge {
   return EVENT_STATUS[s] ?? { label: s, cls: "bg-slate-500/15 text-slate-300 ring-slate-400/30" };
 }
 
+type EventTimes = { status?: string | null; live_end?: string | null; demontage_end?: string | null };
+
+// The moment an event is scheduled to be fully over: teardown end if set, else show end.
+export function scheduledEnd(e: EventTimes): number | null {
+  const raw = e.demontage_end ?? e.live_end;
+  return raw ? new Date(raw).getTime() : null;
+}
+
+// A "Live" (in_progress) event whose scheduled end has already passed — the engineer
+// should have ended it. We surface this instead of a misleading pulsing "Live" badge.
+export function isOverdue(e: EventTimes, now: number = Date.now()): boolean {
+  if (e.status !== "in_progress") return false;
+  const end = scheduledEnd(e);
+  return end != null && end < now;
+}
+
+export const OVERDUE_BADGE: Badge = { label: "Overdue", cls: "bg-amber-500/15 text-amber-300 ring-amber-400/30" };
+
+// Status pill that accounts for a Live event that has run past its scheduled end.
+export function eventBadge(e: EventTimes): Badge {
+  return isOverdue(e) ? OVERDUE_BADGE : statusBadge(e.status ?? "");
+}
+
 const SOURCE: Record<string, Badge> = {
   warehouse: { label: "warehouse", cls: "bg-emerald-500/15 text-emerald-300 ring-emerald-400/30" },
   transfer: { label: "transfer", cls: "bg-fuchsia-500/15 text-fuchsia-300 ring-fuchsia-400/30" },

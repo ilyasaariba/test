@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { sourceBadge } from "@/lib/ui";
 import { DRIVERS } from "@/lib/drivers";
 import NumberInput from "@/components/NumberInput";
+import Dropdown from "@/components/Dropdown";
 import {
   toggleLinePrepared, setAllLinesPrepared, markPrepared, shipToEvent,
   markLineReturned, reportMissing, confirmReturned, resolveMissing, completeReconciliation,
@@ -229,11 +230,8 @@ export default function PrepBoard({
           <>
             <p className="text-sm text-emerald-300">Packed & ready. Choose a driver and hand it off.</p>
             <div className="flex items-center gap-2">
-              <select value={driver} onChange={(e) => setDriver(e.target.value)}
-                className={`${inputCls} bg-slate-900`}>
-                <option value="">Choose driver…</option>
-                {DRIVERS.map((d) => <option key={d} value={d}>{d}</option>)}
-              </select>
+              <Dropdown className="flex-1" value={driver} onChange={setDriver} placeholder="Choose driver…"
+                options={DRIVERS.map((d) => ({ value: d, label: d }))} />
               <button disabled={pending || !driver} onClick={() => run(() => shipToEvent(eventId, driver))}
                 className="btn-primary grad text-white text-sm font-semibold rounded-xl px-4 py-2.5 flex items-center gap-2 disabled:opacity-50">
                 <span className="ms" style={{ fontSize: 18 }}>local_shipping</span> Ship to event

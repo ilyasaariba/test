@@ -12,7 +12,7 @@ const NAV: Record<string, Item[]> = {
     { label: "Dashboard", href: "/dashboard", icon: "grid_view" },
     { label: "Events", href: "/events", icon: "event" },
     { label: "Warehouse", href: "/warehouse", icon: "inventory_2" },
-    { label: "Transfers", href: "/transfers", icon: "swap_horiz" },
+    { label: "Transfer Record", href: "/transfers", icon: "swap_horiz" },
     { label: "Tasks", href: "/tasks", icon: "task_alt" },
     { label: "Missing", href: "/missing", icon: "report" },
   ],
@@ -21,7 +21,7 @@ const NAV: Record<string, Item[]> = {
     { label: "Events", href: "/events", icon: "event" },
     { label: "Requests", href: "/warehouse/requests", icon: "assignment" },
     { label: "Warehouse", href: "/warehouse", icon: "inventory_2" },
-    { label: "Transfers", href: "/transfers", icon: "swap_horiz" },
+    { label: "Transfer Record", href: "/transfers", icon: "swap_horiz" },
     { label: "Tasks", href: "/tasks", icon: "task_alt" },
     { label: "Missing", href: "/missing", icon: "report" },
     { label: "Users", href: "/users", icon: "group" },
@@ -86,9 +86,9 @@ export default function Sidebar({ role, fullName }: { role: string; fullName: st
         ${open ? "max-lg:translate-x-0" : "max-lg:-translate-x-full"}`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3 px-2 py-2">
-            <div className="h-10 w-10 rounded-2xl grad grid place-items-center font-black text-white shadow-lg">AV</div>
+            <div className="h-10 w-10 rounded-2xl grad grid place-items-center font-black text-white text-[13px] tracking-tighter shadow-lg">M212</div>
             <div>
-              <div className="font-extrabold tracking-tight leading-none">AV Logistics</div>
+              <div className="font-extrabold tracking-tight leading-none">M212 Logistics</div>
               <div className="text-[11px] mt-1 flex items-center gap-1" style={{ color: "rgb(var(--accent))" }}>
                 <span className="ms" style={{ fontSize: 13 }}>{ROLE_ICON[role] ?? "person"}</span>
                 {ROLE_LABEL[role] ?? role} workspace

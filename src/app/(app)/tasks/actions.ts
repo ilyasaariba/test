@@ -21,15 +21,12 @@ export async function advanceTask(taskId: string) {
     return { error: "This task isn't assigned to you." };
   }
 
+  // Transfer tasks move real stock — they're driven by the ship/reject form, not this.
+  if (task.type === "transfer") return { error: "Use the ship / reject buttons on this transfer." };
+
   let next: string | null = null;
-  let transferStatus: string | null = null;
-  if (task.type === "transfer") {
-    if (task.status === "pending") { next = "sent"; transferStatus = "sent"; }
-    else if (task.status === "sent") { next = "done"; transferStatus = "completed"; }
-  } else {
-    if (task.status === "pending") next = "in_progress";
-    else if (task.status === "in_progress") next = "done";
-  }
+  if (task.status === "pending") next = "in_progress";
+  else if (task.status === "in_progress") next = "done";
   if (!next) return { error: "This task is already complete." };
 
   const { error } = await supabase
@@ -38,13 +35,9 @@ export async function advanceTask(taskId: string) {
     .eq("id", taskId);
   if (error) return { error: error.message };
 
-  if (transferStatus && task.transfer_id) {
-    await supabase.from("transfers").update({ status: transferStatus }).eq("id", task.transfer_id);
-  }
-
   // Keep the engineer who assigned it in the loop.
   if (task.assigned_by) {
-    const verb = next === "done" ? "completed" : next === "sent" ? "picked up (in transit)" : "started";
+    const verb = next === "done" ? "completed" : "started";
     await supabase.from("notifications").insert({
       user_id: task.assigned_by, type: "task",
       title: `Task ${verb}`, body: `${profile.full_name}: ${task.title}`,

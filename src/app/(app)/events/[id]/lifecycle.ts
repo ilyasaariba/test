@@ -109,8 +109,63 @@ export async function goLive(eventId: string) {
   refresh(eventId);
 }
 
+/* ---- Engineer / lead: the show is over — open the teardown (démontage) pack-down ---- */
+export async function beginTeardown(eventId: string) {
+  const profile = await getProfile();
+  const sb = await createClient();
+  if (!(await canManageEvent(sb, eventId, profile))) return { error: "Not allowed." };
+  const { data: ev } = await sb.from("events").select("id, name, status, created_by, teardown_started_at").eq("id", eventId).single();
+  if (!ev) return { error: "Event not found." };
+  if (ev.status !== "in_progress") return { error: "Teardown starts once the event is live." };
+  if (ev.teardown_started_at) { refresh(eventId); return; } // already under way
+
+  await sb.from("events").update({ teardown_started_at: new Date().toISOString() }).eq("id", eventId);
+  // fresh pack-down checklist
+  await sb.from("event_equipment").update({ packed: false }).eq("event_id", eventId);
+
+  // alert whoever packs the gear: this event's lead(s) + its engineer (minus the clicker)
+  const { data: leads } = await sb.from("event_technicians").select("user_id").eq("event_id", eventId).eq("is_lead", true);
+  const recipients = new Set<string>();
+  for (const l of leads ?? []) if (l.user_id) recipients.add(l.user_id);
+  if (ev.created_by) recipients.add(ev.created_by);
+  recipients.delete(profile.id);
+  if (recipients.size) {
+    await sb.from("notifications").insert([...recipients].map((uid) => ({
+      user_id: uid, type: "event", title: "Teardown started",
+      body: `${ev.name} is over — pack the gear so it's ready to ship back.`, event_id: eventId, is_read: false,
+    })));
+  }
+  refresh(eventId);
+}
+
+/* ---- Engineer / lead: tick a line as packed for the return trip ---- */
+export async function toggleLinePacked(eventId: string, lineId: string, packed: boolean) {
+  const profile = await getProfile();
+  const sb = await createClient();
+  if (!(await canManageEvent(sb, eventId, profile))) return { error: "Not allowed." };
+  const { error } = await sb.from("event_equipment").update({ packed }).eq("id", lineId);
+  if (error) return { error: error.message };
+  revalidatePath(`/events/${eventId}`);
+}
+
+/* ---- Engineer / lead: tick ALL lines packed at once (teardown shortcut) ---- */
+export async function setAllLinesPacked(eventId: string, packed: boolean) {
+  const profile = await getProfile();
+  const sb = await createClient();
+  if (!(await canManageEvent(sb, eventId, profile))) return { error: "Not allowed." };
+  const { error } = await sb.from("event_equipment").update({ packed }).eq("event_id", eventId);
+  if (error) return { error: error.message };
+  revalidatePath(`/events/${eventId}`);
+}
+
 /* ---- Engineer: event finished, gear coming back ---- */
 export async function endEvent(eventId: string) {
+  const pre = await createClient();
+  // teardown must be under way before the event can be closed out
+  const { data: ev0 } = await pre.from("events").select("status, teardown_started_at").eq("id", eventId).single();
+  if (ev0?.status === "in_progress" && !ev0?.teardown_started_at)
+    return { error: "Begin teardown before ending the event." };
+
   const r = await move(eventId, { roles: ["engineer", "admin"], from: ["in_progress"], to: "returning", allowLead: true });
   if ("error" in r) return r;
   // Fresh return checklist — the WM ticks items back in as they physically arrive.

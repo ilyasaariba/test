@@ -8,37 +8,35 @@ import {
   addLine, setLineQty, removeLine,
   addWarehouseSource, addRentalSource, removeSource,
 } from "./actions";
-import { requestTransfer } from "./transfer-flow";
 
 type Alloc = { id: string; source: string; quantity: number; lender?: string | null; fromEventId?: string | null };
 type Line = { id: string; equipmentId: string; name: string; importance: string; quantity: number; allocations: Alloc[] };
 type CatItem = { id: string; name: string; category: string; available: number };
-type Holder = { id: string; name: string; qty: number };
 type Pending = { fromEventName: string; quantity: number };
+type Lent = { toEventName: string; quantity: number };
 
 const inputCls = "rounded-lg glass px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500 placeholder:text-slate-500";
 
 export default function EquipmentBoard({
-  eventId, editable, lines, catalog, eventNames, holdersByEquip, pendingByEquip,
+  eventId, editable, lines, catalog, eventNames, pendingByEquip, lentByEquip,
 }: {
   eventId: string;
   editable: boolean;
   lines: Line[];
   catalog: CatItem[];
   eventNames: Record<string, string>;
-  holdersByEquip: Record<string, Holder[]>;
   pendingByEquip: Record<string, Pending[]>;
+  lentByEquip: Record<string, Lent[]>;
 }) {
   const [pending, start] = useTransition();
   const [err, setErr] = useState<string | null>(null);
-  const [panel, setPanel] = useState<{ lineId: string; tab: "warehouse" | "transfer" | "rental" } | null>(null);
+  const [panel, setPanel] = useState<{ lineId: string; tab: "warehouse" | "rental" } | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [q, setQ] = useState("");
 
   // panel fields
   const [whQty, setWhQty] = useState(1);
   const [rLender, setRLender] = useState(""); const [rQty, setRQty] = useState(1); const [rDue, setRDue] = useState("");
-  const [tFrom, setTFrom] = useState(""); const [tQty, setTQty] = useState(1);
 
   const catMap = useMemo(() => Object.fromEntries(catalog.map((c) => [c.id, c])), [catalog]);
   const usedIds = new Set(lines.map((l) => l.equipmentId));
@@ -54,8 +52,8 @@ export default function EquipmentBoard({
   }
   function openPanel(lineId: string, shortfall: number) {
     setErr(null);
-    setWhQty(Math.max(1, shortfall)); setRQty(Math.max(1, shortfall)); setTQty(Math.max(1, shortfall));
-    setRLender(""); setRDue(""); setTFrom("");
+    setWhQty(Math.max(1, shortfall)); setRQty(Math.max(1, shortfall));
+    setRLender(""); setRDue("");
     setPanel({ lineId, tab: "warehouse" });
   }
 
@@ -126,6 +124,11 @@ export default function EquipmentBoard({
                         <span className="ms" style={{ fontSize: 13 }}>hourglass_top</span>{p.quantity} requested ← {p.fromEventName}
                       </span>
                     ))}
+                    {(lentByEquip[l.equipmentId] ?? []).map((p, i) => (
+                      <span key={`lent-${i}`} className="px-2 py-0.5 rounded-md text-xs font-semibold bg-fuchsia-500/10 text-fuchsia-200 ring-1 ring-fuchsia-400/25 flex items-center gap-1">
+                        <span className="ms" style={{ fontSize: 13 }}>call_made</span>{p.quantity} lent → {p.toEventName}
+                      </span>
+                    ))}
                   </div>
                 </div>
 
@@ -152,12 +155,13 @@ export default function EquipmentBoard({
                   ) : (
                     <div className="glass rounded-xl p-3 mt-1">
                       <div className="flex gap-1 mb-3">
-                        {(["warehouse", "transfer", "rental"] as const).map((t) => (
+                        {(["warehouse", "rental"] as const).map((t) => (
                           <button key={t} onClick={() => setPanel({ lineId: l.id, tab: t })}
                             className={`px-3 py-1 rounded-lg text-xs font-semibold capitalize transition ${panel?.tab === t ? "grad text-white" : "hover:bg-white/10 text-slate-300"}`}>{t}</button>
                         ))}
                         <button onClick={() => setPanel(null)} className="ml-auto ms text-slate-500 hover:text-slate-300" style={{ fontSize: 18 }}>close</button>
                       </div>
+                      <p className="text-[11px] text-slate-500 mb-2">Need gear from another event, or a warehouse top-up? Use <span className="text-indigo-300 font-medium">Request equipment</span> below the board.</p>
 
                       {panel?.tab === "warehouse" && (
                         <div className="flex items-end gap-2 flex-wrap">
@@ -177,23 +181,6 @@ export default function EquipmentBoard({
                         </div>
                       )}
 
-                      {panel?.tab === "transfer" && (() => {
-                        const holders = holdersByEquip[l.equipmentId] ?? [];
-                        return holders.length ? (
-                          <div className="flex items-end gap-2 flex-wrap">
-                            <div><label className="block text-[11px] text-slate-400 mb-1">Request from</label>
-                              <select value={tFrom} onChange={(e) => setTFrom(e.target.value)} className={`${inputCls} w-52 bg-slate-900`}>
-                                <option value="">Select event…</option>
-                                {holders.map((h) => <option key={h.id} value={h.id}>{h.name} — has {h.qty}</option>)}
-                              </select></div>
-                            <div><label className="block text-[11px] text-slate-400 mb-1">Qty</label><NumberInput min={1} value={tQty} onChange={(e) => setTQty(parseInt(e.target.value || "1", 10))} className={`${inputCls} w-20`} /></div>
-                            <button disabled={pending || !tFrom} onClick={() => run(() => requestTransfer(eventId, l.id, l.equipmentId, tFrom, tQty), () => setPanel(null))} className="btn-primary grad text-white text-sm font-semibold rounded-lg px-4 py-2">Request transfer</button>
-                            <span className="text-[11px] text-slate-500 w-full">The other event&apos;s engineer or lead approves or refuses — nothing moves until they accept.</span>
-                          </div>
-                        ) : (
-                          <p className="text-sm text-slate-500">No other active event currently holds <span className="text-slate-300 font-medium">{l.name}</span> from the warehouse to lend.</p>
-                        );
-                      })()}
                     </div>
                   )}
                 </div>

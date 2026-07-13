@@ -9,7 +9,7 @@ export default async function TasksPage() {
 
   let query = supabase
     .from("tasks")
-    .select("id,title,description,type,status,due_time,assigned_by, events(name), assignee:app_users!tasks_assigned_to_fkey(full_name)")
+    .select("id,title,description,type,status,due_time,assigned_by,transfer_id, events(name), assignee:app_users!tasks_assigned_to_fkey(full_name), transfers(requested_quantity,quantity,status,equipment_name,from_event_name,to_event_name)")
     .order("due_time", { ascending: true });
   if (mine) query = query.eq("assigned_to", profile.id);
 
@@ -26,6 +26,14 @@ export default async function TasksPage() {
     dueTime: t.due_time,
     // can the viewer edit/cancel this task? only its creator (or an admin)
     canManage: isAdmin || t.assigned_by === profile.id,
+    transferId: t.transfer_id ?? null,
+    transfer: t.transfers ? {
+      status: t.transfers.status,
+      requestedQty: t.transfers.requested_quantity ?? t.transfers.quantity ?? 1,
+      equipmentName: t.transfers.equipment_name ?? "gear",
+      fromName: t.transfers.from_event_name ?? "an event",
+      toName: t.transfers.to_event_name ?? "an event",
+    } : null,
   }));
 
   return (

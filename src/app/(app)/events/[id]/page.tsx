@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getProfile } from "@/lib/dal";
 import { createClient } from "@/lib/supabase/server";
-import { statusBadge, fmtDMY } from "@/lib/ui";
+import { eventBadge, isOverdue, scheduledEnd, fmtDMY } from "@/lib/ui";
 import EquipmentBoard from "./EquipmentBoard";
 import CrewBoard from "./CrewBoard";
 import LifecycleBar from "./LifecycleBar";
@@ -10,7 +10,9 @@ import EventActions from "./EventActions";
 import TransferActions from "./TransferActions";
 import DeclareMissing from "@/components/DeclareMissing";
 import ReceiveBoard from "./ReceiveBoard";
-import IncomingTransfers from "./IncomingTransfers";
+import TeardownBoard from "./TeardownBoard";
+import RequestEquipment from "./RequestEquipment";
+import IncomingArrivals from "./IncomingArrivals";
 
 const GEAR_OUT = ["received_on_site", "in_progress", "returning", "reconciliation"];
 
@@ -32,7 +34,7 @@ export default async function EventDetailPage({
   const [{ data: lines }, { data: techs }, { data: transfers }, { data: allEvents }, { data: catalog }, { data: allTechs }, { data: taskRows }] =
     await Promise.all([
       supabase.from("event_equipment")
-        .select("id,quantity,tech_confirmed, equipment(id,name,importance), equipment_allocations(id,source,quantity, rentals(lender_name), transfers(from_event_id))")
+        .select("id,quantity,tech_confirmed,packed, equipment(id,name,importance), equipment_allocations(id,source,quantity, rentals(lender_name), transfers(from_event_id))")
         .eq("event_id", id),
       supabase.from("event_technicians").select("user_id,is_lead, app_users(id,full_name,username)").eq("event_id", id),
       supabase.from("transfers").select("id,quantity,status,scheduled_time,from_event_id,to_event_id,created_by, equipment(name)").or(`from_event_id.eq.${id},to_event_id.eq.${id}`),
@@ -42,7 +44,11 @@ export default async function EventDetailPage({
       supabase.from("tasks").select("id,title,description,status,due_time,assigned_to").eq("event_id", id).order("due_time", { ascending: true }),
     ]);
 
-  const b = statusBadge(event.status);
+  const b = eventBadge(event);
+  const teardownStarted = !!event.teardown_started_at;
+  const overdue = isOverdue(event);
+  const overdueEnd = overdue ? scheduledEnd(event) : null;
+  const overdueLabel = overdueEnd ? fmtDMY(new Date(overdueEnd).toISOString()) : null;
   const eventNames: Record<string, string> = Object.fromEntries((allEvents ?? []).map((e: any) => [e.id, e.name]));
   const nameOf = (eid: string) => eventNames[eid] ?? "—";
 
@@ -53,10 +59,12 @@ export default async function EventDetailPage({
     importance: l.equipment?.importance ?? "normal",
     quantity: l.quantity,
     confirmed: !!l.tech_confirmed,
+    packed: !!l.packed,
     allocations: (l.equipment_allocations ?? []).map((a: any) => ({
       id: a.id,
-      // warehouse units tagged with a transfer are shown as "transfer ← A"
-      source: a.transfers ? "transfer" : a.source,
+      // units tagged with a transfer from another event show as "transfer ← A";
+      // a warehouse top-up (transfer with no source event) is just a warehouse chip.
+      source: a.transfers ? (a.transfers.from_event_id ? "transfer" : "warehouse") : a.source,
       quantity: a.quantity,
       lender: a.rentals?.lender_name ?? null,
       fromEventId: a.transfers?.from_event_id ?? null,
@@ -67,15 +75,26 @@ export default async function EventDetailPage({
 
   // Transfer flow: which active events hold each item (to request from), plus this
   // event's pending outgoing requests and incoming requests to approve.
-  const [{ data: whHolders }, { data: incomingRows }, { data: outgoingRows }] = await Promise.all([
+  const [{ data: whHolders }, { data: outgoingRows }, { data: lentRows }, { data: arrivalRows }, { data: crewRows }] = await Promise.all([
     supabase.from("equipment_allocations")
       .select("quantity,returned_quantity, event_equipment!inner(equipment_id, events!inner(id,name,status))")
       .eq("source", "warehouse"),
-    supabase.from("transfers").select("id,quantity,equipment_name,to_event_name,requested_by_name")
-      .eq("from_event_id", id).eq("status", "requested").order("created_at", { ascending: false }),
     supabase.from("transfers").select("equipment_id,quantity,from_event_name")
       .eq("to_event_id", id).eq("status", "requested"),
+    supabase.from("transfers").select("equipment_id,quantity,to_event_name")
+      .eq("from_event_id", id).in("status", ["sent", "received", "completed"]),
+    supabase.from("transfers").select("id,quantity,equipment_name,from_event_name,note")
+      .eq("to_event_id", id).eq("status", "sent").order("created_at", { ascending: false }),
+    supabase.from("event_technicians").select("event_id, app_users(id,full_name,username)"),
   ]);
+
+  // Crew per event — so a transfer can only be assigned to the source event's own crew.
+  const crewByEvent: Record<string, { id: string; full_name: string }[]> = {};
+  for (const r of crewRows ?? []) {
+    const u: any = (r as any).app_users; const evId = (r as any).event_id;
+    if (!u || !evId) continue;
+    (crewByEvent[evId] ??= []).push({ id: u.id, full_name: u.full_name ?? u.username ?? "—" });
+  }
 
   const holdersByEquip: Record<string, { id: string; name: string; qty: number }[]> = {};
   for (const r of whHolders ?? []) {
@@ -91,9 +110,15 @@ export default async function EventDetailPage({
   for (const t of outgoingRows ?? []) {
     (pendingByEquip[(t as any).equipment_id] ??= []).push({ fromEventName: (t as any).from_event_name ?? "event", quantity: (t as any).quantity });
   }
-  const incomingRequests = (incomingRows ?? []).map((t: any) => ({
+  // What this event has lent out to others (source side) — shown as "N lent → B".
+  const lentByEquip: Record<string, { toEventName: string; quantity: number }[]> = {};
+  for (const t of lentRows ?? []) {
+    (lentByEquip[(t as any).equipment_id] ??= []).push({ toEventName: (t as any).to_event_name ?? "event", quantity: (t as any).quantity });
+  }
+  // Gear in transit TO this event, awaiting an arrival confirmation.
+  const arrivals = (arrivalRows ?? []).map((t: any) => ({
     id: t.id, equipmentName: t.equipment_name ?? "gear", quantity: t.quantity,
-    toEventName: t.to_event_name ?? "an event", requestedByName: t.requested_by_name ?? null,
+    fromName: t.from_event_name ?? "Warehouse", note: t.note ?? null,
   }));
 
   const assignedTechs = (techs ?? []).map((t: any) => ({
@@ -144,10 +169,10 @@ export default async function EventDetailPage({
       </div>
 
       {/* lifecycle: request → prepare → ship → received → live */}
-      <LifecycleBar eventId={id} role={profile.role} status={event.status} shipper={event.shipper} isLead={viewerIsLead} />
+      <LifecycleBar eventId={id} role={profile.role} status={event.status} shipper={event.shipper} isLead={viewerIsLead} overdue={overdue} overdueLabel={overdueLabel} teardownStarted={teardownStarted} />
 
-      {/* other events asking THIS event for gear — accept or refuse */}
-      {canManage && <IncomingTransfers requests={incomingRequests} />}
+      {/* gear in transit to this event — confirm on arrival (two-sided) */}
+      {canManage && <IncomingArrivals arrivals={arrivals} />}
 
       {/* receiving checklist — the engineer/lead checks gear in on arrival */}
       {canManage && event.status === "shipped" && (
@@ -156,6 +181,16 @@ export default async function EventDetailPage({
           shipper={event.shipper}
           lines={shapedLines.map((l: any) => ({
             id: l.id, equipmentId: l.equipmentId, name: l.name, importance: l.importance, quantity: l.quantity, confirmed: l.confirmed,
+          }))}
+        />
+      )}
+
+      {/* teardown / démontage pack-down — engineer/lead packs the gear to ship back */}
+      {canManage && event.status === "in_progress" && teardownStarted && (
+        <TeardownBoard
+          eventId={id}
+          lines={shapedLines.map((l: any) => ({
+            id: l.id, equipmentId: l.equipmentId, name: l.name, importance: l.importance, quantity: l.quantity, packed: l.packed,
           }))}
         />
       )}
@@ -178,11 +213,21 @@ export default async function EventDetailPage({
         lines={shapedLines}
         catalog={cat}
         eventNames={eventNames}
-        holdersByEquip={holdersByEquip}
         pendingByEquip={pendingByEquip}
+        lentByEquip={lentByEquip}
       />
       {!editable && (
-        <p className="text-xs text-slate-500 -mt-2 px-1">Sourcing is locked — this event has moved past preparation{profile.role === "boss" ? " (read-only role)" : ""}.</p>
+        <p className="text-xs text-slate-500 -mt-2 px-1">Direct sourcing is locked — use <span className="text-indigo-300">Request equipment</span> below to pull more mid-event{profile.role === "boss" ? " (read-only role)" : ""}.</p>
+      )}
+
+      {/* request more gear — from another event or the warehouse — in any live stage */}
+      {canManage && !CLOSED.includes(event.status) && (
+        <RequestEquipment
+          eventId={id}
+          catalog={cat}
+          holdersByEquip={holdersByEquip}
+          crewByEvent={crewByEvent}
+        />
       )}
 
       {/* Declare missing / lost gear — once the kit has left the warehouse, the
