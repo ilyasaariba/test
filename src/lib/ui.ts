@@ -8,21 +8,21 @@ export const ROLE_LABEL: Record<string, string> = {
 
 type Badge = { label: string; cls: string; live?: boolean };
 
-// Dark-theme status pills (ring style on translucent fill).
+// Light enterprise status pills — soft tint fill, dark semantic text.
 export const EVENT_STATUS: Record<string, Badge> = {
-  draft: { label: "Draft", cls: "bg-slate-500/15 text-slate-300 ring-slate-400/30" },
-  sent_to_warehouse: { label: "Requested", cls: "bg-sky-500/15 text-sky-300 ring-sky-400/30" },
-  prepared: { label: "Prepared", cls: "bg-blue-500/15 text-blue-300 ring-blue-400/30" },
-  shipped: { label: "Shipped", cls: "bg-amber-500/15 text-amber-300 ring-amber-400/30" },
-  received_on_site: { label: "On site", cls: "bg-teal-500/15 text-teal-300 ring-teal-400/30" },
-  in_progress: { label: "Live", cls: "bg-violet-500/15 text-violet-300 ring-violet-400/30", live: true },
-  returning: { label: "Returning", cls: "bg-cyan-500/15 text-cyan-300 ring-cyan-400/30" },
-  reconciliation: { label: "Checking returns", cls: "bg-orange-500/15 text-orange-300 ring-orange-400/30" },
-  archived: { label: "Done", cls: "bg-emerald-500/15 text-emerald-300 ring-emerald-400/30" },
-  cancelled: { label: "Cancelled", cls: "bg-rose-500/15 text-rose-300 ring-rose-400/30" },
+  draft: { label: "Draft", cls: "bg-[#E8EDF2] text-[#46596B] ring-[#DCE3EA]" },
+  sent_to_warehouse: { label: "Requested", cls: "bg-[#EAF4FC] text-[#0A6ED1] ring-[#0A6ED1]/20" },
+  prepared: { label: "Prepared", cls: "bg-[#E5EEFB] text-[#1D4ED8] ring-[#1D4ED8]/20" },
+  shipped: { label: "Shipped", cls: "bg-[#FCF3E7] text-[#B25E09] ring-[#B25E09]/25" },
+  received_on_site: { label: "On site", cls: "bg-[#E6F4F1] text-[#0F766E] ring-[#0F766E]/20" },
+  in_progress: { label: "Live", cls: "bg-[#EBF7EF] text-[#16803C] ring-[#16803C]/25", live: true },
+  returning: { label: "Returning", cls: "bg-[#E5F3F8] text-[#0E7490] ring-[#0E7490]/20" },
+  reconciliation: { label: "Checking returns", cls: "bg-[#FBEFE7] text-[#C2410C] ring-[#C2410C]/20" },
+  archived: { label: "Done", cls: "bg-[#E8EDF2] text-[#46596B] ring-[#DCE3EA]" },
+  cancelled: { label: "Cancelled", cls: "bg-[#FBEEED] text-[#C0271C] ring-[#C0271C]/20" },
 };
 export function statusBadge(s: string): Badge {
-  return EVENT_STATUS[s] ?? { label: s, cls: "bg-slate-500/15 text-slate-300 ring-slate-400/30" };
+  return EVENT_STATUS[s] ?? { label: s, cls: "bg-[#E8EDF2] text-[#46596B] ring-[#DCE3EA]" };
 }
 
 type EventTimes = { status?: string | null; live_end?: string | null; demontage_end?: string | null };
@@ -41,7 +41,7 @@ export function isOverdue(e: EventTimes, now: number = Date.now()): boolean {
   return end != null && end < now;
 }
 
-export const OVERDUE_BADGE: Badge = { label: "Overdue", cls: "bg-amber-500/15 text-amber-300 ring-amber-400/30" };
+export const OVERDUE_BADGE: Badge = { label: "Overdue", cls: "bg-[#FCF3E7] text-[#B25E09] ring-[#B25E09]/25" };
 
 // Status pill that accounts for a Live event that has run past its scheduled end.
 export function eventBadge(e: EventTimes): Badge {
@@ -49,12 +49,12 @@ export function eventBadge(e: EventTimes): Badge {
 }
 
 const SOURCE: Record<string, Badge> = {
-  warehouse: { label: "warehouse", cls: "bg-emerald-500/15 text-emerald-300 ring-emerald-400/30" },
-  transfer: { label: "transfer", cls: "bg-fuchsia-500/15 text-fuchsia-300 ring-fuchsia-400/30" },
-  rental: { label: "rental", cls: "bg-amber-500/15 text-amber-300 ring-amber-400/30" },
+  warehouse: { label: "warehouse", cls: "bg-[#F0F3F6] text-[#566B80] ring-[#DCE3EA]" },
+  transfer: { label: "transfer", cls: "bg-[#EAF4FC] text-[#0A6ED1] ring-[#0A6ED1]/20" },
+  rental: { label: "rental", cls: "bg-[#FCF3E7] text-[#B25E09] ring-[#B25E09]/25" },
 };
 export function sourceBadge(s: string): Badge {
-  return SOURCE[s] ?? { label: s, cls: "bg-slate-500/15 text-slate-300 ring-slate-400/30" };
+  return SOURCE[s] ?? { label: s, cls: "bg-[#E8EDF2] text-[#46596B] ring-[#DCE3EA]" };
 }
 
 // Where in the flow a loss happened, and why.
@@ -67,9 +67,9 @@ export const MISSING_PHASE: Record<string, { label: string; icon: string }> = {
 export const MISSING_REASON: Record<string, string> = { missing: "Missing", lost: "Lost", damaged: "Damaged" };
 
 export function missingStatusBadge(s: string): Badge {
-  return s === "found" ? { label: "Found", cls: "bg-emerald-500/15 text-emerald-300 ring-emerald-400/30" }
-    : s === "written_off" ? { label: "Written off", cls: "bg-slate-500/15 text-slate-300 ring-slate-400/30" }
-    : { label: "Open", cls: "bg-rose-500/15 text-rose-300 ring-rose-400/30" };
+  return s === "found" ? { label: "Found", cls: "bg-[#EBF7EF] text-[#16803C] ring-[#16803C]/25" }
+    : s === "written_off" ? { label: "Written off", cls: "bg-[#E8EDF2] text-[#46596B] ring-[#DCE3EA]" }
+    : { label: "Open", cls: "bg-[#FBEEED] text-[#C0271C] ring-[#C0271C]/20" };
 }
 
 export function fmtDate(d?: string | null): string {

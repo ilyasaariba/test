@@ -107,7 +107,7 @@ export default function LifecycleBar({
                     : done ? "bg-emerald-500/15 text-emerald-300 ring-emerald-400/30"
                     : "bg-white/5 text-slate-500 ring-white/10"}`}>
                   {done ? <span className="ms" style={{ fontSize: 14 }}>check</span>
-                    : active ? <span className="h-1.5 w-1.5 rounded-full bg-white dot-live" /> : null}
+                    : active ? <span className="h-1.5 w-1.5 rounded-full bg-[#FFFFFF]" /> : null}
                   {label}
                 </div>
                 {i < FLOW.length - 1 && <span className={`ms ${done ? "text-emerald-400/50" : "text-slate-600"}`} style={{ fontSize: 16 }}>chevron_right</span>}

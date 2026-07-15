@@ -149,7 +149,7 @@ export default async function EventDetailPage({
         </Link>
         <div className="flex items-start justify-between mt-2">
           <div>
-            <h1 className="text-3xl font-extrabold tracking-tight">{event.name}</h1>
+            <h1 className="text-[22px] font-semibold tracking-tight">{event.name}</h1>
             <p className="text-slate-400 text-sm mt-1">{event.client ? `${event.client} · ` : ""}{event.location ?? ""}</p>
           </div>
           <div className="flex items-center gap-2">
@@ -159,7 +159,7 @@ export default async function EventDetailPage({
               </span>
             )}
             <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ring-1 flex items-center gap-1.5 ${b.cls}`}>
-              {b.live && <span className="h-1.5 w-1.5 rounded-full bg-violet-300 dot-live" />}{b.label}
+              {b.live && <span className="h-1.5 w-1.5 rounded-full bg-[#16803C] dot-live" />}{b.label}
             </span>
             {canManage && !CLOSED.includes(event.status) && (
               <EventActions eventId={id} />

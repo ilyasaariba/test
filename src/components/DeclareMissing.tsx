@@ -20,7 +20,7 @@ const REASONS = [
 ];
 
 const inputCls = "w-full rounded-lg glass px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500 placeholder:text-slate-500";
-const selectCls = `${inputCls} bg-slate-900`;
+const selectCls = inputCls;
 
 // Declare an item missing / lost / damaged. Reused on the global Missing page
 // (with an event picker) and on an event's detail (locked to that event).

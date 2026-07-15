@@ -26,7 +26,7 @@ function Stat({ label, value, icon, sub, tone = "default", href }: {
         <span className="text-sm text-slate-400">{label}</span>
         <span className={`ms ${iconCls}`} style={{ fontSize: 20 }}>{icon}</span>
       </div>
-      <div className={`text-4xl font-extrabold mt-2 ${valCls}`}><CountUp value={value} /></div>
+      <div className={`text-[27px] font-semibold mt-2 num ${valCls}`}><CountUp value={value} /></div>
       {sub && <div className="text-xs mt-1 font-medium">{sub}</div>}
     </>
   );
@@ -88,8 +88,8 @@ export default async function DashboardPage() {
     <div className="space-y-5">
       <div className="flex items-center justify-between reveal" style={{ animationDelay: ".18s" }}>
         <div>
-          <h1 className="text-3xl font-extrabold tracking-tight">Good day, <span className="grad-text">{firstName}</span></h1>
-          <p className="text-slate-400 text-sm mt-1">
+          <h1 className="text-xl font-semibold tracking-tight">Good day, {firstName}</h1>
+          <p className="text-slate-400 text-sm mt-0.5">
             {profile.role === "warehouse_manager" ? "Prep, ship, and check the gear back in."
               : profile.role === "technician" ? "Here are your jobs and events."
               : profile.role === "admin" ? "Full control across every workspace."
@@ -156,7 +156,7 @@ export default async function DashboardPage() {
                   <div className="flex items-center gap-3">
                     <span className="text-xs text-slate-400">{fmtRange(e.live_start, e.live_end)}</span>
                     <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ring-1 flex items-center gap-1.5 ${p.cls}`}>
-                      {p.live && <span className="h-1.5 w-1.5 rounded-full bg-violet-300 dot-live" />}{p.label}
+                      {p.live && <span className="h-1.5 w-1.5 rounded-full bg-[#16803C] dot-live" />}{p.label}
                     </span>
                   </div>
                 </Link>
@@ -170,15 +170,14 @@ export default async function DashboardPage() {
           {/* Live event */}
           {liveEvent ? (
             <Link href={`/events/${liveEvent.id}`} className="card gborder glass rounded-2xl p-5 reveal block" style={{ animationDelay: ".52s" }}>
-              <span className="text-xs font-semibold text-violet-300 flex items-center gap-2">
-                <span className="h-1.5 w-1.5 rounded-full bg-violet-300 dot-live" />LIVE NOW
+              <span className="text-xs font-semibold text-[#16803C] flex items-center gap-2 tracking-wide">
+                <span className="h-1.5 w-1.5 rounded-full bg-[#16803C] dot-live" />LIVE NOW
               </span>
               <div className="flex items-center gap-4 mt-3">
                 <svg className="ring" width="84" height="84" viewBox="0 0 84 84" style={{ "--ring-off": ringOff } as React.CSSProperties}>
-                  <circle cx="42" cy="42" r="34" fill="none" stroke="rgba(255,255,255,.08)" strokeWidth="7" />
-                  <circle className="prog" cx="42" cy="42" r="34" fill="none" stroke="url(#g)" strokeWidth="7" strokeLinecap="round" transform="rotate(-90 42 42)" />
-                  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="var(--ind)" /><stop offset="1" stopColor="var(--fuc)" /></linearGradient></defs>
-                  <text x="42" y="47" textAnchor="middle" fill="#fff" fontSize="16" fontWeight="800">{Math.round(pct * 100)}%</text>
+                  <circle cx="42" cy="42" r="34" fill="none" stroke="#F0F3F6" strokeWidth="7" />
+                  <circle className="prog" cx="42" cy="42" r="34" fill="none" stroke="var(--accent-hex)" strokeWidth="7" strokeLinecap="round" transform="rotate(-90 42 42)" />
+                  <text x="42" y="47" textAnchor="middle" fill="#1B2A3A" fontSize="15" fontWeight="700">{Math.round(pct * 100)}%</text>
                 </svg>
                 <div>
                   <div className="font-semibold">{liveEvent.name}</div>
@@ -226,7 +225,7 @@ export default async function DashboardPage() {
             ))}
 
             {!overdueEvents.length && !criticalMissing.length && !transfers.length && (
-              <p className="text-sm text-slate-400">All clear ✨</p>
+              <p className="text-sm text-slate-400">All clear — nothing needs your attention.</p>
             )}
           </section>
         </div>

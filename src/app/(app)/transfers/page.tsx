@@ -30,7 +30,7 @@ export default async function TransferRecordPage() {
   return (
     <div className="max-w-4xl space-y-5">
       <div className="reveal" style={{ animationDelay: ".06s" }}>
-        <h1 className="text-3xl font-extrabold tracking-tight">Transfer <span className="grad-text">Record</span></h1>
+        <h1 className="text-xl font-semibold tracking-tight">Transfer Record</h1>
         <p className="text-slate-400 text-sm mt-1">
           Every equipment move — who, from where to where, and when · {list.length} total
           {active ? ` · ${active} in progress` : ""}{completed ? ` · ${completed} completed` : ""}

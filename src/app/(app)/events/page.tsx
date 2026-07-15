@@ -40,8 +40,8 @@ export default async function EventsPage({
     <div className="max-w-5xl space-y-5">
       <div className="flex items-center justify-between reveal" style={{ animationDelay: ".06s" }}>
         <div>
-          <h1 className="text-3xl font-extrabold tracking-tight">{isTech ? "My events" : "Events"}</h1>
-          <p className="text-slate-400 text-sm mt-1">{events.length}{filtered ? " match" + (events.length === 1 ? "" : "es") : " total"}</p>
+          <h1 className="text-xl font-semibold tracking-tight">{isTech ? "My events" : "Events"}</h1>
+          <p className="text-slate-400 text-sm mt-0.5">{events.length}{filtered ? " match" + (events.length === 1 ? "" : "es") : " total"}</p>
         </div>
         {canCreate && (
           <Link href="/events/new" className="btn-primary grad text-white text-sm font-semibold rounded-xl px-4 py-2.5 flex items-center gap-2">
@@ -64,7 +64,7 @@ export default async function EventsPage({
               <div className="flex items-center gap-3">
                 <span className="text-xs text-slate-400 hidden sm:block">{fmtRange(e.live_start, e.live_end)}</span>
                 <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ring-1 flex items-center gap-1.5 ${b.cls}`}>
-                  {b.live && <span className="h-1.5 w-1.5 rounded-full bg-violet-300 dot-live" />}{b.label}
+                  {b.live && <span className="h-1.5 w-1.5 rounded-full bg-[#16803C] dot-live" />}{b.label}
                 </span>
               </div>
             </Link>

@@ -39,7 +39,7 @@ export default async function TasksPage() {
   return (
     <div className="max-w-4xl space-y-5">
       <div className="reveal" style={{ animationDelay: ".06s" }}>
-        <h1 className="text-3xl font-extrabold tracking-tight">{mine ? "My tasks" : "Tasks"}</h1>
+        <h1 className="text-xl font-semibold tracking-tight">{mine ? "My tasks" : "Tasks"}</h1>
         <p className="text-slate-400 text-sm mt-1">
           {mine
             ? "Jobs assigned to you by the Engineer — start them and mark them done."

@@ -92,7 +92,7 @@ export default function EventForm({ equipment }: { equipment: Equip[] }) {
         <Link href="/events" className="text-sm text-slate-400 hover:text-slate-200 flex items-center gap-1 w-fit">
           <span className="ms" style={{ fontSize: 16 }}>arrow_back</span> Events
         </Link>
-        <h1 className="text-3xl font-extrabold tracking-tight mt-2">New <span className="grad-text">event</span></h1>
+        <h1 className="text-xl font-semibold tracking-tight mt-2">New event</h1>
         <p className="text-slate-400 text-sm mt-1">Set the dates, shape the phases, and add the gear you'll need.</p>
       </div>
 

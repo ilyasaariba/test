@@ -86,7 +86,7 @@ export default function MissingBoard({
     <div className="space-y-5">
       <div className="flex items-start justify-between gap-3 flex-wrap reveal" style={{ animationDelay: ".06s" }}>
         <div>
-          <h1 className="text-3xl font-extrabold tracking-tight">Missing &amp; lost gear</h1>
+          <h1 className="text-xl font-semibold tracking-tight">Missing &amp; lost gear</h1>
           <p className="text-slate-400 text-sm mt-1">
             {open.length} open{criticalOpen > 0 ? <> · <span className="text-rose-300 font-semibold">{criticalOpen} critical</span></> : null} · {resolved.length} resolved
           </p>
@@ -104,7 +104,7 @@ export default function MissingBoard({
         </div>
         <div className="divide-y divide-white/5">
           {open.length ? open.map((i) => <Row key={i.id} i={i} />)
-            : <p className="px-5 py-10 text-center text-sm text-slate-500">Nothing missing right now ✨</p>}
+            : <p className="px-5 py-10 text-center text-sm text-slate-500">Nothing missing right now.</p>}
         </div>
       </section>
 

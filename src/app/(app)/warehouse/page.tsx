@@ -63,7 +63,7 @@ export default async function WarehousePage({
   return (
     <div className="max-w-4xl space-y-5">
       <div className="reveal" style={{ animationDelay: ".06s" }}>
-        <h1 className="text-3xl font-extrabold tracking-tight">Warehouse</h1>
+        <h1 className="text-xl font-semibold tracking-tight">Warehouse</h1>
         <p className="text-slate-400 text-sm mt-1">
           {equipment.length} items · {totalOwned.toLocaleString()} owned · <span className="text-amber-300">{totalOut.toLocaleString()} out at events</span>
         </p>
@@ -82,7 +82,7 @@ export default async function WarehousePage({
           <div><label className="block text-xs font-semibold text-slate-300 mb-1">Qty</label>
             <NumberInput name="total_quantity" min="0" defaultValue={0} className={inputCls} /></div>
           <div><label className="block text-xs font-semibold text-slate-300 mb-1">Importance</label>
-            <select name="importance" className={`${inputCls} bg-slate-900`} defaultValue="normal">
+            <select name="importance" className={inputCls} defaultValue="normal">
               <option value="normal">Normal</option><option value="critical">Critical</option>
             </select></div>
           <button className="btn-primary grad text-white text-sm font-semibold rounded-xl px-4 py-2.5">Add</button>

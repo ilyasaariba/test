@@ -38,7 +38,7 @@ export default function TransferActions({
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => { setOpen(false); setConfirming(false); }} />
-          <div className="absolute right-0 mt-2 w-64 rounded-xl bg-[#0c1022] backdrop-blur-xl ring-1 ring-white/10 shadow-2xl z-20 p-3 space-y-2">
+          <div className="absolute right-0 mt-2 w-64 rounded-xl bg-[var(--surface)] border border-[var(--border)] shadow-xl z-20 p-3 space-y-2">
             {err && <p className="text-xs text-rose-300">{err}</p>}
             <div>
               <label className="block text-[11px] text-slate-400 mb-1">Quantity</label>

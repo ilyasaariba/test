@@ -53,7 +53,7 @@ export default function DateField({
       </button>
 
       {open && (
-        <div className="absolute left-0 mt-2 z-50 w-64 rounded-xl bg-[#0c1022] ring-1 ring-white/10 shadow-2xl backdrop-blur-xl p-3">
+        <div className="absolute left-0 mt-2 z-50 w-64 rounded-xl bg-[var(--surface)] border border-[var(--border)] shadow-xl p-3">
           <div className="flex items-center justify-between mb-2">
             <button type="button" disabled={atMinMonth}
               onClick={() => { if (!atMinMonth) setView(new Date(view.getFullYear(), view.getMonth() - 1, 1)); }}

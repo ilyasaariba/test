@@ -64,7 +64,7 @@ export default async function WarehousePrepPage({
         </Link>
         <div className="flex items-start justify-between mt-2">
           <div>
-            <h1 className="text-3xl font-extrabold tracking-tight">{event.name}</h1>
+            <h1 className="text-[22px] font-semibold tracking-tight">{event.name}</h1>
             <p className="text-slate-400 text-sm mt-1">
               {event.client ? `${event.client} · ` : ""}{event.location ?? ""} · live {fmtDMY(event.live_start)}
             </p>

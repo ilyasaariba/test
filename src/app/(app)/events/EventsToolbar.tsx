@@ -36,7 +36,7 @@ export default function EventsToolbar() {
         {q && <button onClick={() => setQ("")} className="ms text-slate-500 hover:text-slate-300" style={{ fontSize: 18 }}>close</button>}
       </div>
       <select value={status} onChange={(e) => setStatus(e.target.value)}
-        className="rounded-xl glass px-3 py-2.5 text-sm outline-none bg-slate-900 focus:ring-2 focus:ring-indigo-500">
+        className="rounded-lg bg-[var(--surface)] border border-[var(--border)] px-3 py-2 text-sm outline-none focus:border-[var(--accent-hex)] focus:ring-2 focus:ring-[var(--accent-soft)]">
         <option value="">All statuses</option>
         {Object.entries(EVENT_STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
       </select>

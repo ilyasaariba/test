@@ -11,7 +11,7 @@ const STAGES: { key: string; label: string; cls: string }[] = [
   { key: "prepared", label: "Prepared", cls: "text-blue-300" },
   { key: "shipped", label: "Shipped", cls: "text-amber-300" },
   { key: "received_on_site", label: "On site", cls: "text-teal-300" },
-  { key: "in_progress", label: "Live", cls: "text-violet-300" },
+  { key: "in_progress", label: "Live", cls: "text-emerald-300" },
   { key: "returning", label: "Returning", cls: "text-cyan-300" },
   { key: "archived", label: "Done", cls: "text-emerald-300" },
 ];
@@ -26,9 +26,9 @@ function progressPct(e: any): number {
 }
 
 function utilTone(pct: number) {
-  if (pct >= 85) return { bar: "linear-gradient(90deg,#fb7185,#f43f5e)", text: "text-rose-300" };
-  if (pct >= 60) return { bar: "linear-gradient(90deg,#fbbf24,#f59e0b)", text: "text-amber-300" };
-  return { bar: "linear-gradient(120deg,var(--ind),var(--vio),var(--fuc))", text: "text-sky-300" };
+  if (pct >= 85) return { bar: "#C0271C", text: "text-rose-300" };
+  if (pct >= 60) return { bar: "#B45309", text: "text-amber-300" };
+  return { bar: "var(--accent-hex)", text: "text-sky-300" };
 }
 
 export default async function BossDashboard({ profile }: { profile: { full_name: string } }) {
@@ -128,9 +128,9 @@ export default async function BossDashboard({ profile }: { profile: { full_name:
       {/* hero */}
       <div className="flex items-end justify-between gap-4 reveal" style={{ animationDelay: ".05s" }}>
         <div>
-          <span className="text-xs font-semibold tracking-widest text-indigo-300/80">COMMAND CENTER</span>
-          <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight mt-1">Welcome back, <span className="grad-text">{firstName}</span></h1>
-          <p className="text-slate-400 text-sm mt-1">The whole operation, at a glance — {fmtDMY(new Date().toISOString())}.</p>
+          <span className="text-[10.5px] font-semibold uppercase tracking-[.12em] text-[var(--faint)]">Command center</span>
+          <h1 className="text-xl font-semibold tracking-tight mt-0.5">Welcome back, {firstName}</h1>
+          <p className="text-slate-400 text-sm mt-0.5">The whole operation, at a glance — {fmtDMY(new Date().toISOString())}.</p>
         </div>
         <div className="hidden md:flex items-center gap-2 glass rounded-xl px-3 py-2">
           <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 dot-live" />
@@ -146,11 +146,11 @@ export default async function BossDashboard({ profile }: { profile: { full_name:
               <span className="text-xs text-slate-400">{k.label}</span>
               <span className={`ms ${k.tone}`} style={{ fontSize: 20 }}>{k.icon}</span>
             </div>
-            <div className={`text-4xl font-extrabold mt-2 flex items-baseline ${k.tone}`}>
-              <CountUp value={k.value} />{k.suffix && <span className="text-2xl ml-0.5">{k.suffix}</span>}
+            <div className="text-[27px] font-semibold mt-2 flex items-baseline num">
+              <CountUp value={k.value} />{k.suffix && <span className="text-lg ml-0.5">{k.suffix}</span>}
             </div>
             <div className="text-xs mt-1 font-medium text-slate-500 flex items-center gap-1.5">
-              {k.live && <span className="h-1.5 w-1.5 rounded-full bg-violet-400 dot-live" />}{k.sub}
+              {k.live && <span className="h-1.5 w-1.5 rounded-full bg-[#16803C] dot-live" />}{k.sub}
             </div>
           </div>
         ))}
@@ -233,7 +233,7 @@ export default async function BossDashboard({ profile }: { profile: { full_name:
               </div>
             ))}
             {!overdueEvents.length && !criticalMissing.length && !shortfallEvents.length && !zeroStock.length && (
-              <p className="text-sm text-slate-400">All clear ✨</p>
+              <p className="text-sm text-slate-400">All clear — nothing needs your attention.</p>
             )}
           </div>
         </section>
@@ -242,7 +242,7 @@ export default async function BossDashboard({ profile }: { profile: { full_name:
       {/* live now */}
       {liveEvents.length > 0 && (
         <section className="reveal" style={{ animationDelay: ".34s" }}>
-          <h2 className="font-bold mb-3 flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-violet-300 dot-live" />Live right now</h2>
+          <h2 className="font-bold mb-3 flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-[#16803C] dot-live" />Live right now</h2>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {liveEvents.map((e: any) => {
               const pct = progressPct(e);
@@ -250,10 +250,9 @@ export default async function BossDashboard({ profile }: { profile: { full_name:
               return (
                 <Link key={e.id} href={`/events/${e.id}`} className="card gborder glass rounded-2xl p-5 flex items-center gap-4">
                   <svg className="ring" width="76" height="76" viewBox="0 0 84 84" style={{ "--ring-off": ringOff } as React.CSSProperties}>
-                    <circle cx="42" cy="42" r="34" fill="none" stroke="rgba(255,255,255,.08)" strokeWidth="7" />
-                    <circle className="prog" cx="42" cy="42" r="34" fill="none" stroke="url(#bg)" strokeWidth="7" strokeLinecap="round" transform="rotate(-90 42 42)" />
-                    <defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="var(--ind)" /><stop offset="1" stopColor="var(--fuc)" /></linearGradient></defs>
-                    <text x="42" y="47" textAnchor="middle" fill="#fff" fontSize="15" fontWeight="800">{Math.round(pct * 100)}%</text>
+                    <circle cx="42" cy="42" r="34" fill="none" stroke="#F0F3F6" strokeWidth="7" />
+                    <circle className="prog" cx="42" cy="42" r="34" fill="none" stroke="var(--accent-hex)" strokeWidth="7" strokeLinecap="round" transform="rotate(-90 42 42)" />
+                    <text x="42" y="47" textAnchor="middle" fill="#1B2A3A" fontSize="14" fontWeight="700">{Math.round(pct * 100)}%</text>
                   </svg>
                   <div className="min-w-0">
                     <div className="font-semibold truncate">{e.name}</div>
@@ -291,7 +290,7 @@ export default async function BossDashboard({ profile }: { profile: { full_name:
                     <span className="text-[11px] text-slate-500 hidden md:flex items-center gap-1"><span className="ms" style={{ fontSize: 14 }}>group</span>{crewByEvent[e.id] ?? 0}</span>
                     <span className="text-xs text-slate-400 hidden lg:block">{fmtRange(e.live_start, e.live_end)}</span>
                     <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ring-1 flex items-center gap-1.5 ${b.cls}`}>
-                      {b.live && <span className="h-1.5 w-1.5 rounded-full bg-violet-300 dot-live" />}{b.label}
+                      {b.live && <span className="h-1.5 w-1.5 rounded-full bg-[#16803C] dot-live" />}{b.label}
                     </span>
                   </div>
                 </Link>

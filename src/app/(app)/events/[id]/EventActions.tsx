@@ -29,7 +29,7 @@ export default function EventActions({ eventId }: { eventId: string }) {
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => { setOpen(false); setConfirming(false); }} />
-          <div className="absolute right-0 mt-2 w-56 rounded-xl bg-[#0c1022] backdrop-blur-xl ring-1 ring-white/10 shadow-2xl z-20 p-1.5">
+          <div className="absolute right-0 mt-2 w-56 rounded-xl bg-[var(--surface)] border border-[var(--border)] shadow-xl z-20 p-1.5">
             <Link href={`/events/${eventId}/edit`}
               className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm hover:bg-white/10 transition">
               <span className="ms text-slate-300" style={{ fontSize: 18 }}>edit</span> Edit details &amp; dates

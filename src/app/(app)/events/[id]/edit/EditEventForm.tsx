@@ -89,7 +89,7 @@ export default function EditEventForm({
         <Link href={`/events/${eventId}`} className="text-sm text-slate-400 hover:text-slate-200 flex items-center gap-1 w-fit">
           <span className="ms" style={{ fontSize: 16 }}>arrow_back</span> Back to event
         </Link>
-        <h1 className="text-3xl font-extrabold tracking-tight mt-2">Edit <span className="grad-text">event</span></h1>
+        <h1 className="text-xl font-semibold tracking-tight mt-2">Edit event</h1>
         <p className="text-slate-400 text-sm mt-1">Update the details and dates. Manage equipment from the event page.</p>
       </div>
 

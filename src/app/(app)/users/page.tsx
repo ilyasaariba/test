@@ -17,7 +17,7 @@ export default async function UsersPage() {
   return (
     <div className="max-w-3xl space-y-5">
       <div className="reveal" style={{ animationDelay: ".06s" }}>
-        <h1 className="text-3xl font-extrabold tracking-tight">Users</h1>
+        <h1 className="text-xl font-semibold tracking-tight">Users</h1>
         <p className="text-slate-400 text-sm mt-1">{users.length} accounts</p>
       </div>
 
