@@ -54,6 +54,7 @@ export default async function NewEventPage() {
       holdersByEquip={holdersByEquip}
       crewByEvent={crewByEvent}
       technicians={technicians}
+      me={{ id: profile.id, full_name: profile.full_name ?? "You" }}
     />
   );
 }

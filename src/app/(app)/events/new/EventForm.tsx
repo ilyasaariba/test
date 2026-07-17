@@ -11,6 +11,7 @@ import PageHeader from "@/components/PageHeader";
 type Equip = { id: string; name: string; category: string; available: number };
 type Holder = { id: string; name: string; qty: number };
 type Tech = { id: string; full_name: string; username?: string };
+type Me = { id: string; full_name: string };
 
 // An equipment need being configured: total needed, how much comes from the
 // warehouse, and per-source-event transfer allocations (qty + assigned tech).
@@ -36,18 +37,20 @@ function daysBetween(start: string, end: string) {
   return out;
 }
 const dm = (ymd: string) => `${ymd.slice(8, 10)}/${ymd.slice(5, 7)}`;
+const initials = (n: string) => n.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
 
 const inputCls =
   "w-full rounded-xl glass px-3.5 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500 placeholder:text-slate-500";
 const labelCls = "block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wide";
 
 export default function EventForm({
-  equipment, holdersByEquip, crewByEvent, technicians,
+  equipment, holdersByEquip, crewByEvent, technicians, me,
 }: {
   equipment: Equip[];
   holdersByEquip: Record<string, Holder[]>;
   crewByEvent: Record<string, Tech[]>;
   technicians: Tech[];
+  me: Me;
 }) {
   const [name, setName] = useState("");
   const [client, setClient] = useState("");
@@ -79,8 +82,8 @@ export default function EventForm({
 
   // ----- equipment -----
   const [items, setItems] = useState<Item[]>([]);
+  const [expandedId, setExpandedId] = useState<string | null>(null); // one open editor at a time
   const [q, setQ] = useState("");
-  const eqMap = useMemo(() => Object.fromEntries(equipment.map((e) => [e.id, e])), [equipment]);
   const usedIds = new Set(items.map((it) => it.equip.id));
   const results = useMemo(
     () => equipment.filter((e) => !usedIds.has(e.id) && e.name.toLowerCase().includes(q.toLowerCase())).slice(0, 8),
@@ -101,15 +104,18 @@ export default function EventForm({
   }
   function addItem(e: Equip) {
     setItems((prev) => [...prev, { equip: e, need: 1, wh: Math.min(1, Math.max(0, e.available)), alloc: {} }]);
+    setExpandedId(e.id); // open the one you just added
     setQ(""); setError(null);
   }
-  function removeItem(id: string) { setItems((prev) => prev.filter((it) => it.equip.id !== id)); }
+  function removeItem(id: string) {
+    setItems((prev) => prev.filter((it) => it.equip.id !== id));
+    setExpandedId((cur) => (cur === id ? null : cur));
+  }
 
   function setNeed(id: string, v: number) {
     patch(id, (it) => {
       const need = Math.max(1, v);
       const evTotal = eventTotal(it);
-      // If nothing is on transfer yet, keep warehouse covering the full need.
       const wh = evTotal === 0
         ? Math.min(need, Math.max(0, it.equip.available))
         : Math.min(it.wh, Math.max(0, Math.min(need - evTotal, it.equip.available)));
@@ -127,7 +133,6 @@ export default function EventForm({
       const otherEvents = Object.entries(it.alloc).reduce((s, [k, a]) => s + (k === eventId ? 0 : a.qty || 0), 0);
       const cap = Math.min(have, Math.max(0, it.need - otherEvents));
       const qty = Math.max(0, Math.min(v, cap));
-      // A transfer pushes warehouse down so the total never exceeds the need.
       const wh = Math.max(0, Math.min(it.wh, it.need - (otherEvents + qty)));
       return { ...it, wh, alloc: { ...it.alloc, [eventId]: { qty, tech: it.alloc[eventId]?.tech ?? "" } } };
     });
@@ -136,19 +141,45 @@ export default function EventForm({
     patch(id, (it) => ({ ...it, alloc: { ...it.alloc, [eventId]: { qty: it.alloc[eventId]?.qty ?? 0, tech } } }));
   }
 
-  // ----- crew -----
-  const [crew, setCrew] = useState<{ userId: string; isLead: boolean }[]>([]);
-  const [crewQ, setCrewQ] = useState("");
-  const crewIds = new Set(crew.map((c) => c.userId));
-  const techMap = useMemo(() => Object.fromEntries(technicians.map((t) => [t.id, t])), [technicians]);
-  const crewResults = useMemo(
-    () => technicians.filter((t) => !crewIds.has(t.id) && t.full_name.toLowerCase().includes(crewQ.toLowerCase())).slice(0, 6),
-    [technicians, crewQ, crew],
-  );
-  function addCrew(id: string) { setCrew((c) => [...c, { userId: id, isLead: false }]); setCrewQ(""); }
-  function removeCrew(id: string) { setCrew((c) => c.filter((x) => x.userId !== id)); }
-  function toggleLead(id: string) { setCrew((c) => c.map((x) => (x.userId === id ? { ...x, isLead: !x.isLead } : x))); }
+  // short source summary for a collapsed item ("5 warehouse · 3 ← Mawazine")
+  function sourceChips(it: Item): string[] {
+    const out: string[] = [];
+    if (it.wh > 0) out.push(`${it.wh} warehouse`);
+    for (const h of holdersFor(it.equip)) {
+      const qty = it.alloc[h.id]?.qty ?? 0;
+      if (qty > 0) out.push(`${qty} ← ${h.name}`);
+    }
+    return out;
+  }
 
+  // ----- crew (drag & drop into Leads / Crew) -----
+  const [crew, setCrew] = useState<{ userId: string; isLead: boolean }[]>([]);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [overZone, setOverZone] = useState<"lead" | "crew" | "pool" | null>(null);
+
+  const candidates: (Tech & { isYou?: boolean })[] = useMemo(
+    () => [{ id: me.id, full_name: me.full_name, isYou: true }, ...technicians.filter((t) => t.id !== me.id)],
+    [technicians, me],
+  );
+  const candMap = useMemo(() => Object.fromEntries(candidates.map((c) => [c.id, c])), [candidates]);
+  const crewIds = new Set(crew.map((c) => c.userId));
+  const pool = candidates.filter((c) => !crewIds.has(c.id));
+  const leads = crew.filter((c) => c.isLead);
+  const members = crew.filter((c) => !c.isLead);
+
+  function place(userId: string, target: "lead" | "crew" | "pool") {
+    setCrew((prev) => {
+      const without = prev.filter((c) => c.userId !== userId);
+      if (target === "pool") return without;
+      return [...without, { userId, isLead: target === "lead" }];
+    });
+  }
+  function onDrop(target: "lead" | "crew" | "pool") {
+    if (draggingId) place(draggingId, target);
+    setDraggingId(null); setOverZone(null);
+  }
+
+  // ----- submit -----
   const transfersCount = items.reduce((s, it) => s + Object.values(it.alloc).filter((a) => a.qty > 0).length, 0);
   const equipValid = items.every(itemValid);
 
@@ -245,22 +276,57 @@ export default function EventForm({
             <h2 className="font-bold flex items-center gap-2"><span className="ms grad-text" style={{ fontSize: 20 }}>inventory_2</span> Equipment</h2>
             <p className="text-slate-400 text-xs mt-0.5 mb-4">Add what you need, then source each item from the warehouse and/or a transfer from another event.</p>
 
-            <div className="space-y-3">
+            <div className="space-y-2">
               {items.map((it) => {
                 const holders = holdersFor(it.equip);
                 const total = allocated(it);
                 const over = total > it.need;
                 const remaining = it.need - total;
                 const whCap = Math.min(it.equip.available, Math.max(0, it.need - eventTotal(it)));
+                const valid = itemValid(it);
+
+                // ---- collapsed summary ----
+                if (it.equip.id !== expandedId) {
+                  const chips = sourceChips(it);
+                  return (
+                    <div key={it.equip.id}
+                      onClick={() => setExpandedId(it.equip.id)}
+                      className="rounded-xl ring-1 ring-white/10 bg-white/[.03] hover:bg-white/[.06] transition px-3.5 py-2.5 flex items-center gap-3 cursor-pointer">
+                      <span className={`ms ${valid ? "text-emerald-300" : "text-amber-300"}`} style={{ fontSize: 18 }}>
+                        {valid ? "check_circle" : "error"}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold truncate">{it.equip.name}</span>
+                          <span className="text-[11px] text-slate-500 shrink-0">×{it.need}</span>
+                        </div>
+                        <div className="text-[11px] text-slate-500 truncate">
+                          {chips.length ? chips.join(" · ") : "not sourced yet"}
+                          {remaining > 0 && chips.length ? ` · ${remaining} short` : ""}
+                        </div>
+                      </div>
+                      <span className="ms text-slate-500 shrink-0" style={{ fontSize: 18 }}>edit</span>
+                      <button type="button" onClick={(e) => { e.stopPropagation(); removeItem(it.equip.id); }}
+                        className="ms text-slate-500 hover:text-rose-300 shrink-0" style={{ fontSize: 18 }} title="Remove">delete</button>
+                    </div>
+                  );
+                }
+
+                // ---- expanded editor ----
                 return (
-                  <div key={it.equip.id} className="rounded-xl ring-1 ring-white/10 bg-white/[.03] p-3.5 space-y-3">
+                  <div key={it.equip.id} className="rounded-xl ring-1 ring-indigo-400/30 bg-white/[.04] p-3.5 space-y-3">
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2 min-w-0">
                         <span className="ms text-indigo-300" style={{ fontSize: 18 }}>inventory_2</span>
                         <span className="font-semibold truncate">{it.equip.name}</span>
                         <span className="text-[11px] text-slate-500 shrink-0">{it.equip.category}</span>
                       </div>
-                      <button type="button" onClick={() => removeItem(it.equip.id)} className="ms text-slate-500 hover:text-rose-300 shrink-0" style={{ fontSize: 18 }} title="Remove">delete</button>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button type="button" onClick={() => setExpandedId(null)}
+                          className="ms text-slate-500 hover:text-emerald-300" style={{ fontSize: 18 }} title="Done — collapse">check</button>
+                        <button type="button" onClick={() => removeItem(it.equip.id)}
+                          className="ms text-slate-500 hover:text-rose-300" style={{ fontSize: 18 }} title="Remove">delete</button>
+                      </div>
                     </div>
 
                     <div className="flex items-center gap-3">
@@ -322,11 +388,12 @@ export default function EventForm({
               })}
             </div>
 
-            {/* add an item */}
-            <div className="glass rounded-xl p-2 mt-3">
+            {/* add an item — focusing this collapses the open editor */}
+            <div className="glass rounded-xl p-2 mt-2">
               <div className="flex items-center gap-2 px-1.5 pb-1.5">
                 <span className="ms text-slate-400" style={{ fontSize: 18 }}>{items.length ? "add" : "search"}</span>
-                <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={items.length ? "Add another item…" : "Search equipment to add…"}
+                <input value={q} onFocus={() => setExpandedId(null)} onChange={(e) => setQ(e.target.value)}
+                  placeholder={items.length ? "Add another item…" : "Search equipment to add…"}
                   className="bg-transparent outline-none text-sm w-full placeholder:text-slate-500" />
               </div>
               {q && (
@@ -347,53 +414,57 @@ export default function EventForm({
             </div>
           </section>
 
-          {/* ---- crew ---- */}
+          {/* ---- crew: drag & drop ---- */}
           <section className="card glass rounded-2xl p-6 reveal" style={{ animationDelay: ".3s" }}>
             <h2 className="font-bold flex items-center gap-2"><span className="ms grad-text" style={{ fontSize: 20 }}>groups</span> Crew</h2>
-            <p className="text-slate-400 text-xs mt-0.5 mb-4">Assign the technicians working this event. Star one to make them the on-site lead.</p>
+            <p className="text-slate-400 text-xs mt-0.5 mb-4">Drag people into <span className="text-amber-300 font-semibold">Leads</span> or <span className="text-[var(--accent-hex)] font-semibold">Crew</span>. A lead can run the event when you&apos;re busy.</p>
 
-            <div className="space-y-2">
-              {crew.map((c) => {
-                const t = techMap[c.userId];
-                return (
-                  <div key={c.userId} className="rounded-lg px-3 py-2 ring-1 ring-white/10 bg-white/5 flex items-center gap-3">
-                    <div className="h-8 w-8 rounded-full bg-[var(--accent-soft)] text-[var(--accent-hex)] grid place-items-center text-[11px] font-bold shrink-0">
-                      {(t?.full_name ?? "?").split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase()}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="text-sm font-medium truncate">{t?.full_name ?? "—"}</div>
-                      {c.isLead && <div className="text-[11px] text-[var(--accent-hex)] font-semibold">Event lead</div>}
-                    </div>
-                    <button type="button" onClick={() => toggleLead(c.userId)}
-                      className={`ms transition ${c.isLead ? "text-amber-300" : "text-slate-500 hover:text-amber-300"}`}
-                      style={{ fontSize: 20 }} title={c.isLead ? "Remove lead" : "Make lead"}>
-                      {c.isLead ? "star" : "star_outline"}
-                    </button>
-                    <button type="button" onClick={() => removeCrew(c.userId)} className="ms text-slate-500 hover:text-rose-300" style={{ fontSize: 18 }} title="Remove">close</button>
-                  </div>
-                );
-              })}
-              {crew.length === 0 && <p className="text-sm text-slate-500 px-1 py-2">No crew yet — add technicians below.</p>}
+            {/* drop zones */}
+            <div className="grid sm:grid-cols-2 gap-3">
+              <DropZone
+                label="Leads" icon="star" tone="lead" count={leads.length}
+                active={overZone === "lead"}
+                onOver={() => setOverZone("lead")} onLeave={() => setOverZone((z) => (z === "lead" ? null : z))}
+                onDrop={() => onDrop("lead")}>
+                {leads.map((c) => (
+                  <AssignedCard key={c.userId} name={candMap[c.userId]?.full_name ?? "—"} isYou={!!candMap[c.userId]?.isYou} tone="lead"
+                    onDragStart={() => setDraggingId(c.userId)} onDragEnd={() => setDraggingId(null)}
+                    onSwap={() => place(c.userId, "crew")} swapLabel="→ Crew"
+                    onRemove={() => place(c.userId, "pool")} />
+                ))}
+                {leads.length === 0 && <ZoneHint>Drop a lead here</ZoneHint>}
+              </DropZone>
+
+              <DropZone
+                label="Crew" icon="engineering" tone="crew" count={members.length}
+                active={overZone === "crew"}
+                onOver={() => setOverZone("crew")} onLeave={() => setOverZone((z) => (z === "crew" ? null : z))}
+                onDrop={() => onDrop("crew")}>
+                {members.map((c) => (
+                  <AssignedCard key={c.userId} name={candMap[c.userId]?.full_name ?? "—"} isYou={!!candMap[c.userId]?.isYou} tone="crew"
+                    onDragStart={() => setDraggingId(c.userId)} onDragEnd={() => setDraggingId(null)}
+                    onSwap={() => place(c.userId, "lead")} swapLabel="★ Lead"
+                    onRemove={() => place(c.userId, "pool")} />
+                ))}
+                {members.length === 0 && <ZoneHint>Drop crew here</ZoneHint>}
+              </DropZone>
             </div>
 
-            <div className="glass rounded-xl p-2 mt-3">
-              <div className="flex items-center gap-2 px-1.5 pb-1.5">
-                <span className="ms text-slate-400" style={{ fontSize: 18 }}>{crew.length ? "person_add" : "search"}</span>
-                <input value={crewQ} onChange={(e) => setCrewQ(e.target.value)} placeholder={crew.length ? "Add another technician…" : "Search technicians…"}
-                  className="bg-transparent outline-none text-sm w-full placeholder:text-slate-500" />
+            {/* the pool of people (also a drop target = remove) */}
+            <div className="mt-4">
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-2">Team</div>
+              <div
+                onDragOver={(e) => { e.preventDefault(); setOverZone("pool"); }}
+                onDragLeave={() => setOverZone((z) => (z === "pool" ? null : z))}
+                onDrop={() => onDrop("pool")}
+                className={`rounded-xl p-2 flex flex-wrap gap-2 min-h-[52px] ring-1 transition ${overZone === "pool" ? "ring-rose-400/40 bg-rose-500/5" : "ring-white/10 bg-white/[.02]"}`}>
+                {pool.map((c) => (
+                  <PoolCard key={c.id} name={c.full_name} isYou={!!c.isYou}
+                    onDragStart={() => setDraggingId(c.id)} onDragEnd={() => setDraggingId(null)}
+                    onAddCrew={() => place(c.id, "crew")} onAddLead={() => place(c.id, "lead")} />
+                ))}
+                {pool.length === 0 && <ZoneHint>Everyone is assigned — drag a card back here to unassign.</ZoneHint>}
               </div>
-              {crewQ && (
-                <div className="max-h-48 overflow-auto space-y-0.5">
-                  {crewResults.map((t) => (
-                    <button key={t.id} type="button" onClick={() => addCrew(t.id)}
-                      className="w-full flex items-center justify-between rounded-lg px-2.5 py-2 hover:bg-white/5 transition text-left">
-                      <span className="text-sm font-medium">{t.full_name}</span>
-                      <span className="ms text-indigo-300" style={{ fontSize: 18 }}>add_circle</span>
-                    </button>
-                  ))}
-                  {!crewResults.length && <p className="text-sm text-slate-500 px-2 py-2">No match.</p>}
-                </div>
-              )}
             </div>
           </section>
         </div>
@@ -402,7 +473,7 @@ export default function EventForm({
       {/* footer */}
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <p className="text-xs text-slate-500">
-          {items.length} item{items.length === 1 ? "" : "s"} · {crew.length} crew
+          {items.length} item{items.length === 1 ? "" : "s"} · {crew.length} crew{leads.length ? ` (${leads.length} lead)` : ""}
           {transfersCount > 0 ? ` · ${transfersCount} transfer${transfersCount === 1 ? "" : "s"} will be requested` : ""}
         </p>
         <div className="flex justify-end gap-2">
@@ -413,6 +484,82 @@ export default function EventForm({
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+/* ---------- crew drag & drop pieces ---------- */
+
+function DropZone({
+  label, icon, tone, count, active, children, onOver, onLeave, onDrop,
+}: {
+  label: string; icon: string; tone: "lead" | "crew"; count: number; active: boolean;
+  children: React.ReactNode;
+  onOver: () => void; onLeave: () => void; onDrop: () => void;
+}) {
+  const accent = tone === "lead" ? "text-amber-300" : "text-[var(--accent-hex)]";
+  const ring = active ? (tone === "lead" ? "ring-amber-400/50 bg-amber-500/5" : "ring-[var(--accent-hex)]/50 bg-[var(--accent-soft)]") : "ring-white/10 bg-white/[.02]";
+  return (
+    <div
+      onDragOver={(e) => { e.preventDefault(); onOver(); }}
+      onDragLeave={onLeave}
+      onDrop={onDrop}
+      className={`rounded-xl ring-1 p-3 min-h-[120px] transition ${ring}`}>
+      <div className="flex items-center gap-1.5 mb-2">
+        <span className={`ms ${accent}`} style={{ fontSize: 17 }}>{icon}</span>
+        <span className="text-xs font-bold">{label}</span>
+        <span className="text-[11px] text-slate-500">{count}</span>
+      </div>
+      <div className="space-y-1.5">{children}</div>
+    </div>
+  );
+}
+
+function ZoneHint({ children }: { children: React.ReactNode }) {
+  return <p className="text-[11px] text-slate-500 px-1 py-1.5">{children}</p>;
+}
+
+function Avatar({ name, isYou }: { name: string; isYou?: boolean }) {
+  return (
+    <div className={`h-7 w-7 rounded-full grid place-items-center text-[10px] font-bold shrink-0 ${isYou ? "bg-[var(--accent-hex)] text-white" : "bg-[var(--accent-soft)] text-[var(--accent-hex)]"}`}>
+      {initials(name)}
+    </div>
+  );
+}
+
+function PoolCard({ name, isYou, onDragStart, onDragEnd, onAddCrew, onAddLead }: {
+  name: string; isYou?: boolean;
+  onDragStart: () => void; onDragEnd: () => void; onAddCrew: () => void; onAddLead: () => void;
+}) {
+  return (
+    <div draggable onDragStart={onDragStart} onDragEnd={onDragEnd}
+      className="group rounded-lg ring-1 ring-white/10 bg-white/5 hover:bg-white/10 px-2.5 py-1.5 flex items-center gap-2 cursor-grab active:cursor-grabbing">
+      <Avatar name={name} isYou={isYou} />
+      <span className="text-sm font-medium">{name}{isYou ? " (You)" : ""}</span>
+      <span className="flex items-center gap-0.5 ml-1">
+        <button type="button" onClick={onAddLead} title="Make lead"
+          className="ms text-slate-500 hover:text-amber-300" style={{ fontSize: 17 }}>star</button>
+        <button type="button" onClick={onAddCrew} title="Add to crew"
+          className="ms text-slate-500 hover:text-[var(--accent-hex)]" style={{ fontSize: 17 }}>add_circle</button>
+      </span>
+    </div>
+  );
+}
+
+function AssignedCard({ name, isYou, tone, onDragStart, onDragEnd, onSwap, swapLabel, onRemove }: {
+  name: string; isYou?: boolean; tone: "lead" | "crew";
+  onDragStart: () => void; onDragEnd: () => void; onSwap: () => void; swapLabel: string; onRemove: () => void;
+}) {
+  const ring = tone === "lead" ? "ring-amber-400/25 bg-amber-500/10" : "ring-[var(--accent-hex)]/20 bg-[var(--accent-soft)]";
+  return (
+    <div draggable onDragStart={onDragStart} onDragEnd={onDragEnd}
+      className={`rounded-lg ring-1 ${ring} px-2.5 py-1.5 flex items-center gap-2 cursor-grab active:cursor-grabbing`}>
+      <Avatar name={name} isYou={isYou} />
+      <span className="text-sm font-medium truncate flex-1">{name}{isYou ? " (You)" : ""}</span>
+      <button type="button" onClick={onSwap} title={swapLabel}
+        className="text-[10px] font-semibold text-slate-400 hover:text-slate-200 px-1.5 py-0.5 rounded shrink-0">{swapLabel}</button>
+      <button type="button" onClick={onRemove} title="Unassign"
+        className="ms text-slate-500 hover:text-rose-300 shrink-0" style={{ fontSize: 16 }}>close</button>
     </div>
   );
 }
