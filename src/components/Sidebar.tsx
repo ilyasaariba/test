@@ -93,8 +93,8 @@ export default function Sidebar({ role, fullName }: { role: string; fullName: st
       {/* backdrop */}
       {open && <div className="lg:hidden fixed inset-0 z-40 bg-black/40" onClick={() => setOpen(false)} />}
 
-      <aside className={`w-56 shrink-0 bg-[var(--surface)] border-r border-[var(--border)] flex flex-col px-3 py-4 z-50
-        lg:translate-x-0
+      <aside className={`w-56 shrink-0 bg-[var(--surface)] border-r border-[var(--border)] flex flex-col px-3 py-4 z-50 overflow-y-auto
+        lg:translate-x-0 lg:sticky lg:top-14 lg:h-[calc(100vh-3.5rem)]
         max-lg:fixed max-lg:inset-y-0 max-lg:left-0 max-lg:w-64 max-lg:transition-transform max-lg:duration-200 max-lg:shadow-xl
         ${open ? "max-lg:translate-x-0" : "max-lg:-translate-x-full"}`}>
 
