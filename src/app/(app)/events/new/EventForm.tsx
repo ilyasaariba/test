@@ -61,23 +61,28 @@ export default function EventForm({
   const [busy, setBusy] = useState(false);
 
   // ----- dates / phases -----
+  // liveStart/liveEnd index into days[]; -1 = live not chosen yet.
   const days = useMemo(() => daysBetween(start, end), [start, end]);
-  const [liveStart, setLiveStart] = useState(0);
-  const [liveEnd, setLiveEnd] = useState(0);
-  const [selecting, setSelecting] = useState(false);
+  const [liveStart, setLiveStart] = useState(-1);
+  const [liveEnd, setLiveEnd] = useState(-1);
+  const liveChosen = liveStart >= 0;
 
-  useEffect(() => {
-    const n = days.length;
-    if (n <= 1) { setLiveStart(0); setLiveEnd(Math.max(0, n - 1)); }
-    else if (n === 2) { setLiveStart(0); setLiveEnd(1); }
-    else { setLiveStart(1); setLiveEnd(n - 2); }
-    setSelecting(false);
-  }, [days.length]);
+  // Changing the event date range clears the live selection — you pick it fresh.
+  useEffect(() => { setLiveStart(-1); setLiveEnd(-1); }, [start, end]);
 
   function clickDay(i: number) {
-    if (!selecting) { setLiveStart(i); setLiveEnd(i); setSelecting(true); }
-    else if (i >= liveStart) { setLiveEnd(i); setSelecting(false); }
-    else { setLiveStart(i); setLiveEnd(i); setSelecting(true); }
+    // nothing chosen yet → this one day becomes the (single-day) live span
+    if (liveStart < 0) { setLiveStart(i); setLiveEnd(i); return; }
+    // click inside the current selection → clear it (removes the blue)
+    if (i >= liveStart && i <= liveEnd) { setLiveStart(-1); setLiveEnd(-1); return; }
+    // one day chosen → the second click sets the other end of the range
+    if (liveStart === liveEnd) {
+      setLiveStart(Math.min(i, liveStart));
+      setLiveEnd(Math.max(i, liveStart));
+      return;
+    }
+    // a range already set, click outside it → start over from this day
+    setLiveStart(i); setLiveEnd(i);
   }
 
   // ----- equipment -----
@@ -187,6 +192,7 @@ export default function EventForm({
     setError(null);
     if (!name.trim()) return setError("Event name is required.");
     if (!days.length) return setError("Pick a start and end day.");
+    if (!liveChosen) return setError("Pick your live day(s) in the phases.");
     if (!equipValid) return setError("Finish the equipment sourcing — check quantities and pick a technician for every transfer.");
     setBusy(true);
     const payload: NewEventInput = {
@@ -243,14 +249,19 @@ export default function EventForm({
               <div className="mt-6">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-sm font-semibold">Phases</h3>
-                  <span className="text-xs text-slate-500">Tap the first &amp; last <span className="text-violet-300">Live</span> day</span>
+                  <span className="text-xs text-slate-500">
+                    {liveChosen
+                      ? <>Click a <span className="text-violet-300">Live</span> day again to clear it</>
+                      : <>Tap the first &amp; last <span className="text-violet-300">Live</span> day</>}
+                  </span>
                 </div>
                 <div className="flex flex-wrap gap-1.5">
                   {days.map((d, i) => {
-                    const phase = i < liveStart ? "m" : i <= liveEnd ? "l" : "d";
+                    const phase = !liveChosen ? "n" : i < liveStart ? "m" : i <= liveEnd ? "l" : "d";
                     const cls = phase === "l" ? "grad text-white border-transparent"
                       : phase === "m" ? "bg-indigo-500/20 text-indigo-200 border-indigo-400/30"
-                      : "bg-slate-500/15 text-slate-300 border-slate-400/30";
+                      : phase === "d" ? "bg-slate-500/15 text-slate-300 border-slate-400/30"
+                      : "glass text-slate-300 border-transparent";
                     return (
                       <button key={i} type="button" onClick={() => clickDay(i)}
                         className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border ${cls} transition hover:scale-105`}>
@@ -259,11 +270,18 @@ export default function EventForm({
                     );
                   })}
                 </div>
-                <div className="grid grid-cols-3 gap-2 mt-3 text-xs">
-                  <div className="glass rounded-lg px-3 py-2"><div className="text-indigo-300 font-semibold">Montage</div><div className="text-slate-300 mt-0.5">{fmtDMY(days[0])}{liveStart > 0 ? ` – ${fmtDMY(days[liveStart - 1])}` : ""}</div></div>
-                  <div className="glass rounded-lg px-3 py-2"><div className="text-violet-300 font-semibold">Live</div><div className="text-slate-300 mt-0.5">{fmtDMY(days[liveStart])} – {fmtDMY(days[liveEnd])}</div></div>
-                  <div className="glass rounded-lg px-3 py-2"><div className="text-slate-300 font-semibold">Démontage</div><div className="text-slate-300 mt-0.5">{liveEnd < days.length - 1 ? `${fmtDMY(days[liveEnd + 1])} – ` : ""}{fmtDMY(days[days.length - 1])}</div></div>
-                </div>
+                {liveChosen ? (
+                  <div className="grid grid-cols-3 gap-2 mt-3 text-xs">
+                    <div className="glass rounded-lg px-3 py-2"><div className="text-indigo-300 font-semibold">Montage</div><div className="text-slate-300 mt-0.5">{liveStart > 0 ? `${fmtDMY(days[0])} – ${fmtDMY(days[liveStart - 1])}` : "—"}</div></div>
+                    <div className="glass rounded-lg px-3 py-2"><div className="text-violet-300 font-semibold">Live</div><div className="text-slate-300 mt-0.5">{fmtDMY(days[liveStart])} – {fmtDMY(days[liveEnd])}</div></div>
+                    <div className="glass rounded-lg px-3 py-2"><div className="text-slate-300 font-semibold">Démontage</div><div className="text-slate-300 mt-0.5">{liveEnd < days.length - 1 ? `${fmtDMY(days[liveEnd + 1])} – ${fmtDMY(days[days.length - 1])}` : "—"}</div></div>
+                  </div>
+                ) : (
+                  <p className="mt-3 text-xs text-amber-300 flex items-center gap-1.5">
+                    <span className="ms" style={{ fontSize: 15 }}>touch_app</span>
+                    Pick your live day(s) — tap one day, then another for a range.
+                  </p>
+                )}
               </div>
             )}
           </section>
