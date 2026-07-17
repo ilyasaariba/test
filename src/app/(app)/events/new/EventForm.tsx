@@ -5,10 +5,21 @@ import Link from "next/link";
 import { createEvent, type NewEventInput } from "./actions";
 import { fmtDMY } from "@/lib/ui";
 import RangeCalendar from "@/components/RangeCalendar";
-import NumberInput from "@/components/NumberInput";
+import Dropdown from "@/components/Dropdown";
 import PageHeader from "@/components/PageHeader";
 
 type Equip = { id: string; name: string; category: string; available: number };
+type Holder = { id: string; name: string; qty: number };
+type Tech = { id: string; full_name: string; username?: string };
+
+// An equipment need being configured: total needed, how much comes from the
+// warehouse, and per-source-event transfer allocations (qty + assigned tech).
+type Item = {
+  equip: Equip;
+  need: number;
+  wh: number;
+  alloc: Record<string, { qty: number; tech: string }>; // key = holder event id
+};
 
 function toYMD(d: Date) {
   const p = (n: number) => String(n).padStart(2, "0");
@@ -30,16 +41,23 @@ const inputCls =
   "w-full rounded-xl glass px-3.5 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500 placeholder:text-slate-500";
 const labelCls = "block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wide";
 
-export default function EventForm({ equipment }: { equipment: Equip[] }) {
+export default function EventForm({
+  equipment, holdersByEquip, crewByEvent, technicians,
+}: {
+  equipment: Equip[];
+  holdersByEquip: Record<string, Holder[]>;
+  crewByEvent: Record<string, Tech[]>;
+  technicians: Tech[];
+}) {
   const [name, setName] = useState("");
   const [client, setClient] = useState("");
   const [location, setLocation] = useState("");
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
-  const [lines, setLines] = useState<{ equipment_id: string; quantity: number }[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  // ----- dates / phases -----
   const days = useMemo(() => daysBetween(start, end), [start, end]);
   const [liveStart, setLiveStart] = useState(0);
   const [liveEnd, setLiveEnd] = useState(0);
@@ -59,173 +77,361 @@ export default function EventForm({ equipment }: { equipment: Equip[] }) {
     else { setLiveStart(i); setLiveEnd(i); setSelecting(true); }
   }
 
-  // equipment picker
+  // ----- equipment -----
+  const [items, setItems] = useState<Item[]>([]);
   const [q, setQ] = useState("");
-  const [cat, setCat] = useState("All");
-  const cats = useMemo(() => ["All", ...Array.from(new Set(equipment.map((e) => e.category)))], [equipment]);
   const eqMap = useMemo(() => Object.fromEntries(equipment.map((e) => [e.id, e])), [equipment]);
-  const selectedIds = new Set(lines.map((l) => l.equipment_id));
-  const filtered = equipment.filter(
-    (e) => (cat === "All" || e.category === cat) && e.name.toLowerCase().includes(q.toLowerCase()),
+  const usedIds = new Set(items.map((it) => it.equip.id));
+  const results = useMemo(
+    () => equipment.filter((e) => !usedIds.has(e.id) && e.name.toLowerCase().includes(q.toLowerCase())).slice(0, 8),
+    [equipment, q, items],
   );
 
-  function addItem(id: string) { if (!selectedIds.has(id)) setLines((l) => [...l, { equipment_id: id, quantity: 1 }]); }
-  function setQty(id: string, qty: number) { setLines((l) => l.map((x) => (x.equipment_id === id ? { ...x, quantity: Math.max(1, qty) } : x))); }
-  function removeItem(id: string) { setLines((l) => l.filter((x) => x.equipment_id !== id)); }
+  function holdersFor(equip: Equip): Holder[] { return holdersByEquip[equip.id] ?? []; }
+  function eventTotal(it: Item) { return Object.values(it.alloc).reduce((s, a) => s + (a.qty || 0), 0); }
+  function allocated(it: Item) { return it.wh + eventTotal(it); }
+  function itemValid(it: Item) {
+    const over = allocated(it) > it.need;
+    const missingTech = Object.values(it.alloc).some((a) => (a.qty || 0) > 0 && !a.tech);
+    return allocated(it) >= 1 && !over && !missingTech;
+  }
+
+  function patch(id: string, fn: (it: Item) => Item) {
+    setItems((prev) => prev.map((it) => (it.equip.id === id ? fn(it) : it)));
+  }
+  function addItem(e: Equip) {
+    setItems((prev) => [...prev, { equip: e, need: 1, wh: Math.min(1, Math.max(0, e.available)), alloc: {} }]);
+    setQ(""); setError(null);
+  }
+  function removeItem(id: string) { setItems((prev) => prev.filter((it) => it.equip.id !== id)); }
+
+  function setNeed(id: string, v: number) {
+    patch(id, (it) => {
+      const need = Math.max(1, v);
+      const evTotal = eventTotal(it);
+      // If nothing is on transfer yet, keep warehouse covering the full need.
+      const wh = evTotal === 0
+        ? Math.min(need, Math.max(0, it.equip.available))
+        : Math.min(it.wh, Math.max(0, Math.min(need - evTotal, it.equip.available)));
+      return { ...it, need, wh };
+    });
+  }
+  function setWh(id: string, v: number) {
+    patch(id, (it) => {
+      const cap = Math.min(it.equip.available, Math.max(0, it.need - eventTotal(it)));
+      return { ...it, wh: Math.max(0, Math.min(v, cap)) };
+    });
+  }
+  function setEventQty(id: string, eventId: string, have: number, v: number) {
+    patch(id, (it) => {
+      const otherEvents = Object.entries(it.alloc).reduce((s, [k, a]) => s + (k === eventId ? 0 : a.qty || 0), 0);
+      const cap = Math.min(have, Math.max(0, it.need - otherEvents));
+      const qty = Math.max(0, Math.min(v, cap));
+      // A transfer pushes warehouse down so the total never exceeds the need.
+      const wh = Math.max(0, Math.min(it.wh, it.need - (otherEvents + qty)));
+      return { ...it, wh, alloc: { ...it.alloc, [eventId]: { qty, tech: it.alloc[eventId]?.tech ?? "" } } };
+    });
+  }
+  function setEventTech(id: string, eventId: string, tech: string) {
+    patch(id, (it) => ({ ...it, alloc: { ...it.alloc, [eventId]: { qty: it.alloc[eventId]?.qty ?? 0, tech } } }));
+  }
+
+  // ----- crew -----
+  const [crew, setCrew] = useState<{ userId: string; isLead: boolean }[]>([]);
+  const [crewQ, setCrewQ] = useState("");
+  const crewIds = new Set(crew.map((c) => c.userId));
+  const techMap = useMemo(() => Object.fromEntries(technicians.map((t) => [t.id, t])), [technicians]);
+  const crewResults = useMemo(
+    () => technicians.filter((t) => !crewIds.has(t.id) && t.full_name.toLowerCase().includes(crewQ.toLowerCase())).slice(0, 6),
+    [technicians, crewQ, crew],
+  );
+  function addCrew(id: string) { setCrew((c) => [...c, { userId: id, isLead: false }]); setCrewQ(""); }
+  function removeCrew(id: string) { setCrew((c) => c.filter((x) => x.userId !== id)); }
+  function toggleLead(id: string) { setCrew((c) => c.map((x) => (x.userId === id ? { ...x, isLead: !x.isLead } : x))); }
+
+  const transfersCount = items.reduce((s, it) => s + Object.values(it.alloc).filter((a) => a.qty > 0).length, 0);
+  const equipValid = items.every(itemValid);
 
   async function submit() {
     setError(null);
     if (!name.trim()) return setError("Event name is required.");
     if (!days.length) return setError("Pick a start and end day.");
+    if (!equipValid) return setError("Finish the equipment sourcing — check quantities and pick a technician for every transfer.");
     setBusy(true);
     const payload: NewEventInput = {
       name, client, location,
       montage_start: days[0], live_start: days[liveStart], live_end: days[liveEnd], demontage_end: days[days.length - 1],
-      lines: lines.filter((l) => l.equipment_id && l.quantity > 0),
+      lines: items.map((it) => ({
+        equipment_id: it.equip.id,
+        totalNeeded: it.need,
+        warehouseQty: it.wh,
+        transfers: Object.entries(it.alloc)
+          .filter(([, a]) => a.qty > 0)
+          .map(([eventId, a]) => ({ fromEventId: eventId, quantity: a.qty, assignedTo: a.tech })),
+      })),
+      crew,
     };
     const res = await createEvent(payload);
     if (res?.error) { setError(res.error); setBusy(false); }
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-5">
+    <div className="max-w-6xl mx-auto space-y-5">
       <div className="reveal" style={{ animationDelay: ".05s" }}>
         <PageHeader
           icon="add_circle"
           back={{ href: "/events", label: "Events" }}
           title="New event"
-          sub="Set the dates, shape the phases, and add the gear you'll need."
+          sub="Set the dates and crew on the left, then source the gear on the right."
         />
       </div>
 
       {error && <div className="rounded-xl bg-rose-500/10 text-rose-300 ring-1 ring-rose-400/30 px-3.5 py-2.5 text-sm font-medium reveal">{error}</div>}
 
-      {/* Basics */}
-      <section className="card glass rounded-2xl p-6 space-y-4 reveal" style={{ animationDelay: ".12s" }}>
-        <div><label className={labelCls}>Event name *</label>
-          <input className={inputCls} placeholder="e.g. Summer Festival" value={name} onChange={(e) => setName(e.target.value)} /></div>
-        <div className="grid sm:grid-cols-2 gap-4">
-          <div><label className={labelCls}>Client</label>
-            <input className={inputCls} placeholder="Client / customer" value={client} onChange={(e) => setClient(e.target.value)} /></div>
-          <div><label className={labelCls}>Location</label>
-            <input className={inputCls} placeholder="Venue / city" value={location} onChange={(e) => setLocation(e.target.value)} /></div>
+      <div className="grid lg:grid-cols-2 gap-5 items-start">
+        {/* ================= LEFT: details + dates ================= */}
+        <div className="space-y-5">
+          <section className="card glass rounded-2xl p-6 space-y-4 reveal" style={{ animationDelay: ".12s" }}>
+            <h2 className="font-bold flex items-center gap-2"><span className="ms grad-text" style={{ fontSize: 20 }}>badge</span> Details</h2>
+            <div><label className={labelCls}>Event name *</label>
+              <input className={inputCls} placeholder="e.g. Summer Festival" value={name} onChange={(e) => setName(e.target.value)} /></div>
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div><label className={labelCls}>Client</label>
+                <input className={inputCls} placeholder="Client / customer" value={client} onChange={(e) => setClient(e.target.value)} /></div>
+              <div><label className={labelCls}>Location</label>
+                <input className={inputCls} placeholder="Venue / city" value={location} onChange={(e) => setLocation(e.target.value)} /></div>
+            </div>
+          </section>
+
+          <section className="card glass rounded-2xl p-6 reveal" style={{ animationDelay: ".18s" }}>
+            <h2 className="font-bold flex items-center gap-2"><span className="ms grad-text" style={{ fontSize: 20 }}>calendar_month</span> Dates</h2>
+            <p className="text-slate-400 text-xs mt-0.5 mb-4">Pick the first and last day (DD/MM/YYYY).</p>
+            <RangeCalendar start={start} end={end} onChange={(s, e) => { setStart(s); setEnd(e); }} />
+
+            {days.length > 0 && (
+              <div className="mt-6">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-semibold">Phases</h3>
+                  <span className="text-xs text-slate-500">Tap the first &amp; last <span className="text-violet-300">Live</span> day</span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {days.map((d, i) => {
+                    const phase = i < liveStart ? "m" : i <= liveEnd ? "l" : "d";
+                    const cls = phase === "l" ? "grad text-white border-transparent"
+                      : phase === "m" ? "bg-indigo-500/20 text-indigo-200 border-indigo-400/30"
+                      : "bg-slate-500/15 text-slate-300 border-slate-400/30";
+                    return (
+                      <button key={i} type="button" onClick={() => clickDay(i)}
+                        className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border ${cls} transition hover:scale-105`}>
+                        {dm(d)}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="grid grid-cols-3 gap-2 mt-3 text-xs">
+                  <div className="glass rounded-lg px-3 py-2"><div className="text-indigo-300 font-semibold">Montage</div><div className="text-slate-300 mt-0.5">{fmtDMY(days[0])}{liveStart > 0 ? ` – ${fmtDMY(days[liveStart - 1])}` : ""}</div></div>
+                  <div className="glass rounded-lg px-3 py-2"><div className="text-violet-300 font-semibold">Live</div><div className="text-slate-300 mt-0.5">{fmtDMY(days[liveStart])} – {fmtDMY(days[liveEnd])}</div></div>
+                  <div className="glass rounded-lg px-3 py-2"><div className="text-slate-300 font-semibold">Démontage</div><div className="text-slate-300 mt-0.5">{liveEnd < days.length - 1 ? `${fmtDMY(days[liveEnd + 1])} – ` : ""}{fmtDMY(days[days.length - 1])}</div></div>
+                </div>
+              </div>
+            )}
+          </section>
         </div>
-      </section>
 
-      {/* Dates */}
-      <section className="card glass rounded-2xl p-6 reveal" style={{ animationDelay: ".18s" }}>
-        <h2 className="font-bold">Dates</h2>
-        <p className="text-slate-400 text-xs mt-0.5 mb-4">Pick the first and last day (DD/MM/YYYY).</p>
-        <RangeCalendar start={start} end={end} onChange={(s, e) => { setStart(s); setEnd(e); }} />
+        {/* ================= RIGHT: equipment + crew ================= */}
+        <div className="space-y-5">
+          {/* ---- equipment ---- */}
+          <section className="card glass rounded-2xl p-6 reveal" style={{ animationDelay: ".24s" }}>
+            <h2 className="font-bold flex items-center gap-2"><span className="ms grad-text" style={{ fontSize: 20 }}>inventory_2</span> Equipment</h2>
+            <p className="text-slate-400 text-xs mt-0.5 mb-4">Add what you need, then source each item from the warehouse and/or a transfer from another event.</p>
 
-        {days.length > 0 && (
-          <div className="mt-6">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-semibold">Phases</h3>
-              <span className="text-xs text-slate-500">Tap the first &amp; last <span className="text-violet-300">Live</span> day · the rest auto-fills montage / démontage</span>
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {days.map((d, i) => {
-                const phase = i < liveStart ? "m" : i <= liveEnd ? "l" : "d";
-                const cls = phase === "l" ? "grad text-white border-transparent"
-                  : phase === "m" ? "bg-indigo-500/20 text-indigo-200 border-indigo-400/30"
-                  : "bg-slate-500/15 text-slate-300 border-slate-400/30";
+            <div className="space-y-3">
+              {items.map((it) => {
+                const holders = holdersFor(it.equip);
+                const total = allocated(it);
+                const over = total > it.need;
+                const remaining = it.need - total;
+                const whCap = Math.min(it.equip.available, Math.max(0, it.need - eventTotal(it)));
                 return (
-                  <button key={i} type="button" onClick={() => clickDay(i)}
-                    className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border ${cls} transition hover:scale-105`}>
-                    {dm(d)}
-                  </button>
-                );
-              })}
-            </div>
-            <div className="grid grid-cols-3 gap-2 mt-3 text-xs">
-              <div className="glass rounded-lg px-3 py-2"><div className="text-indigo-300 font-semibold">Montage</div><div className="text-slate-300 mt-0.5">{fmtDMY(days[0])}{liveStart > 0 ? ` – ${fmtDMY(days[liveStart - 1])}` : ""}</div></div>
-              <div className="glass rounded-lg px-3 py-2"><div className="text-violet-300 font-semibold">Live</div><div className="text-slate-300 mt-0.5">{fmtDMY(days[liveStart])} – {fmtDMY(days[liveEnd])}</div></div>
-              <div className="glass rounded-lg px-3 py-2"><div className="text-slate-300 font-semibold">Démontage</div><div className="text-slate-300 mt-0.5">{liveEnd < days.length - 1 ? `${fmtDMY(days[liveEnd + 1])} – ` : ""}{fmtDMY(days[days.length - 1])}</div></div>
-            </div>
-          </div>
-        )}
-      </section>
-
-      {/* Equipment */}
-      <section className="card glass rounded-2xl p-6 reveal" style={{ animationDelay: ".24s" }}>
-        <h2 className="font-bold">Equipment needed</h2>
-        <p className="text-slate-400 text-xs mt-0.5 mb-4">Search your inventory and add what this event needs. Availability updates live.</p>
-
-        <div className="grid md:grid-cols-2 gap-4">
-          {/* Browse */}
-          <div>
-            <div className="flex items-center gap-2 glass rounded-xl px-3 py-2 mb-3">
-              <span className="ms text-slate-400" style={{ fontSize: 18 }}>search</span>
-              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search equipment…"
-                className="bg-transparent outline-none text-sm w-full placeholder:text-slate-500" />
-            </div>
-            <div className="flex flex-wrap gap-1.5 mb-3">
-              {cats.map((c) => (
-                <button key={c} type="button" onClick={() => setCat(c)}
-                  className={`px-2.5 py-1 rounded-full text-xs font-semibold transition ${cat === c ? "grad text-white" : "glass text-slate-300 hover:bg-white/10"}`}>{c}</button>
-              ))}
-            </div>
-            <div className="max-h-64 overflow-auto pr-1 space-y-1">
-              {filtered.map((e) => {
-                const added = selectedIds.has(e.id);
-                return (
-                  <button key={e.id} type="button" onClick={() => addItem(e.id)} disabled={added}
-                    className={`w-full flex items-center justify-between gap-2 rounded-lg px-3 py-2 text-left transition ${added ? "opacity-50" : "hover:bg-white/5"}`}>
-                    <div>
-                      <div className="text-sm font-medium">{e.name}</div>
-                      <div className="text-[11px] text-slate-500">{e.category} · <span className={e.available <= 0 ? "text-rose-300" : "text-emerald-300/80"}>{e.available} available</span></div>
-                    </div>
-                    <span className={`ms ${added ? "text-emerald-300" : "text-indigo-300"}`} style={{ fontSize: 20 }}>{added ? "check_circle" : "add_circle"}</span>
-                  </button>
-                );
-              })}
-              {!filtered.length && <p className="text-sm text-slate-500 px-1 py-3">No matches.</p>}
-            </div>
-          </div>
-
-          {/* Selected */}
-          <div className="glass rounded-xl p-3">
-            <div className="text-xs font-semibold text-slate-300 mb-2 flex items-center justify-between">
-              <span>Selected ({lines.length})</span>
-            </div>
-            {lines.length === 0 && <p className="text-sm text-slate-500 px-1 py-6 text-center">Nothing added yet.</p>}
-            <div className="space-y-2">
-              {lines.map((l) => {
-                const e = eqMap[l.equipment_id];
-                const over = e && l.quantity > e.available;
-                return (
-                  <div key={l.equipment_id} className="rounded-lg bg-white/5 ring-1 ring-white/10 px-3 py-2">
+                  <div key={it.equip.id} className="rounded-xl ring-1 ring-white/10 bg-white/[.03] p-3.5 space-y-3">
                     <div className="flex items-center justify-between gap-2">
-                      <div className="text-sm font-medium truncate">{e?.name ?? "—"}</div>
-                      <button type="button" onClick={() => removeItem(l.equipment_id)} className="ms text-slate-500 hover:text-rose-300 transition" style={{ fontSize: 18 }}>close</button>
-                    </div>
-                    <div className="flex items-center justify-between mt-2">
-                      <div className="flex items-center gap-1.5">
-                        <button type="button" onClick={() => setQty(l.equipment_id, l.quantity - 1)} className="h-7 w-7 grid place-items-center rounded-lg glass hover:bg-white/10"><span className="ms" style={{ fontSize: 16 }}>remove</span></button>
-                        <NumberInput min={1} value={l.quantity} onChange={(ev) => setQty(l.equipment_id, parseInt(ev.target.value || "1", 10))}
-                          className="w-12 text-center rounded-lg glass py-1 text-sm outline-none" />
-                        <button type="button" onClick={() => setQty(l.equipment_id, l.quantity + 1)} className="h-7 w-7 grid place-items-center rounded-lg glass hover:bg-white/10"><span className="ms" style={{ fontSize: 16 }}>add</span></button>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="ms text-indigo-300" style={{ fontSize: 18 }}>inventory_2</span>
+                        <span className="font-semibold truncate">{it.equip.name}</span>
+                        <span className="text-[11px] text-slate-500 shrink-0">{it.equip.category}</span>
                       </div>
-                      <span className={`text-[11px] ${over ? "text-amber-300" : "text-slate-500"}`}>
-                        {over ? `over by ${l.quantity - (e?.available ?? 0)} — needs transfer/rental` : `${e?.available ?? 0} available`}
+                      <button type="button" onClick={() => removeItem(it.equip.id)} className="ms text-slate-500 hover:text-rose-300 shrink-0" style={{ fontSize: 18 }} title="Remove">delete</button>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <label className="text-xs font-semibold text-slate-300">Need</label>
+                      <Stepper value={it.need} min={1} onChange={(v) => setNeed(it.equip.id, v)} />
+                      <span className={`text-xs font-semibold ml-auto ${over ? "text-rose-300" : total === it.need ? "text-emerald-300" : "text-slate-400"}`}>
+                        sourced {total} / {it.need}{total === it.need ? " ✓" : remaining > 0 ? ` · ${remaining} left` : ""}
                       </span>
                     </div>
+
+                    <div className="space-y-2">
+                      {/* warehouse source */}
+                      <div className={`rounded-lg px-3 py-2 ring-1 flex items-center gap-3 ${it.wh > 0 ? "bg-sky-500/5 ring-sky-400/20" : "bg-white/5 ring-white/10"}`}>
+                        <span className="ms text-sky-300" style={{ fontSize: 17 }}>warehouse</span>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm font-medium">Warehouse</div>
+                          <div className="text-[11px] text-slate-500">{it.equip.available} available</div>
+                        </div>
+                        <Stepper value={it.wh} min={0} max={whCap} disabled={it.equip.available <= 0}
+                          onChange={(v) => setWh(it.equip.id, v)} />
+                      </div>
+
+                      {/* transfer sources */}
+                      {holders.map((h) => {
+                        const crewOf = crewByEvent[h.id] ?? [];
+                        const noCrew = crewOf.length === 0;
+                        const qty = it.alloc[h.id]?.qty ?? 0;
+                        const disabled = h.qty <= 0 || noCrew;
+                        return (
+                          <div key={h.id} className={`rounded-lg px-3 py-2 ring-1 ${qty > 0 ? "bg-fuchsia-500/5 ring-fuchsia-400/20" : "bg-white/5 ring-white/10"}`}>
+                            <div className="flex items-center gap-3">
+                              <span className="ms text-fuchsia-300" style={{ fontSize: 17 }}>swap_horiz</span>
+                              <div className="min-w-0 flex-1">
+                                <div className="text-sm font-medium truncate">{h.name}</div>
+                                <div className="text-[11px] text-slate-500">{noCrew ? "no crew — can't lend" : `transfer · has ${h.qty}`}</div>
+                              </div>
+                              <Stepper value={qty} min={0} max={Math.min(h.qty, it.need - (total - qty))} disabled={disabled}
+                                onChange={(v) => setEventQty(it.equip.id, h.id, h.qty, v)} />
+                            </div>
+                            {qty > 0 && (
+                              <div className="mt-2 flex items-center gap-2 flex-wrap">
+                                <span className="text-[11px] text-slate-400 shrink-0">assign to</span>
+                                <Dropdown size="sm" className="w-48" value={it.alloc[h.id]?.tech ?? ""} onChange={(v) => setEventTech(it.equip.id, h.id, v)}
+                                  placeholder="crew member…" options={crewOf.map((t) => ({ value: t.id, label: t.full_name }))} />
+                                {!it.alloc[h.id]?.tech && <span className="text-[11px] text-amber-300">pick a crew member</span>}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {over && <p className="text-[11px] text-rose-300">Sourced more than needed — lower one.</p>}
+                    {!over && remaining > 0 && total > 0 && (
+                      <p className="text-[11px] text-amber-300">{remaining} still unsourced — will show as a shortfall you can resolve later.</p>
+                    )}
                   </div>
                 );
               })}
             </div>
-          </div>
-        </div>
-      </section>
 
-      <div className="flex justify-end gap-2">
-        <Link href="/events" className="px-4 py-2.5 rounded-xl glass text-sm font-semibold hover:bg-white/10 transition">Cancel</Link>
-        <button onClick={submit} disabled={busy}
-          className="btn-primary grad text-white text-sm font-semibold rounded-xl px-5 py-2.5 flex items-center gap-2 disabled:opacity-60">
-          {busy ? "Creating…" : <>Create event <span className="ms" style={{ fontSize: 18 }}>check</span></>}
-        </button>
+            {/* add an item */}
+            <div className="glass rounded-xl p-2 mt-3">
+              <div className="flex items-center gap-2 px-1.5 pb-1.5">
+                <span className="ms text-slate-400" style={{ fontSize: 18 }}>{items.length ? "add" : "search"}</span>
+                <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={items.length ? "Add another item…" : "Search equipment to add…"}
+                  className="bg-transparent outline-none text-sm w-full placeholder:text-slate-500" />
+              </div>
+              {q && (
+                <div className="max-h-52 overflow-auto space-y-0.5">
+                  {results.map((e) => (
+                    <button key={e.id} type="button" onClick={() => addItem(e)}
+                      className="w-full flex items-center justify-between rounded-lg px-2.5 py-2 hover:bg-white/5 transition text-left">
+                      <span className="text-sm font-medium">{e.name}</span>
+                      <span className="flex items-center gap-1.5 text-[11px] text-slate-500">
+                        {e.category} · <span className={e.available <= 0 ? "text-rose-300" : "text-emerald-300/80"}>{e.available} avail.</span>
+                        <span className="ms text-indigo-300" style={{ fontSize: 18 }}>add_circle</span>
+                      </span>
+                    </button>
+                  ))}
+                  {!results.length && <p className="text-sm text-slate-500 px-2 py-2">No match.</p>}
+                </div>
+              )}
+            </div>
+          </section>
+
+          {/* ---- crew ---- */}
+          <section className="card glass rounded-2xl p-6 reveal" style={{ animationDelay: ".3s" }}>
+            <h2 className="font-bold flex items-center gap-2"><span className="ms grad-text" style={{ fontSize: 20 }}>groups</span> Crew</h2>
+            <p className="text-slate-400 text-xs mt-0.5 mb-4">Assign the technicians working this event. Star one to make them the on-site lead.</p>
+
+            <div className="space-y-2">
+              {crew.map((c) => {
+                const t = techMap[c.userId];
+                return (
+                  <div key={c.userId} className="rounded-lg px-3 py-2 ring-1 ring-white/10 bg-white/5 flex items-center gap-3">
+                    <div className="h-8 w-8 rounded-full bg-[var(--accent-soft)] text-[var(--accent-hex)] grid place-items-center text-[11px] font-bold shrink-0">
+                      {(t?.full_name ?? "?").split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase()}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-medium truncate">{t?.full_name ?? "—"}</div>
+                      {c.isLead && <div className="text-[11px] text-[var(--accent-hex)] font-semibold">Event lead</div>}
+                    </div>
+                    <button type="button" onClick={() => toggleLead(c.userId)}
+                      className={`ms transition ${c.isLead ? "text-amber-300" : "text-slate-500 hover:text-amber-300"}`}
+                      style={{ fontSize: 20 }} title={c.isLead ? "Remove lead" : "Make lead"}>
+                      {c.isLead ? "star" : "star_outline"}
+                    </button>
+                    <button type="button" onClick={() => removeCrew(c.userId)} className="ms text-slate-500 hover:text-rose-300" style={{ fontSize: 18 }} title="Remove">close</button>
+                  </div>
+                );
+              })}
+              {crew.length === 0 && <p className="text-sm text-slate-500 px-1 py-2">No crew yet — add technicians below.</p>}
+            </div>
+
+            <div className="glass rounded-xl p-2 mt-3">
+              <div className="flex items-center gap-2 px-1.5 pb-1.5">
+                <span className="ms text-slate-400" style={{ fontSize: 18 }}>{crew.length ? "person_add" : "search"}</span>
+                <input value={crewQ} onChange={(e) => setCrewQ(e.target.value)} placeholder={crew.length ? "Add another technician…" : "Search technicians…"}
+                  className="bg-transparent outline-none text-sm w-full placeholder:text-slate-500" />
+              </div>
+              {crewQ && (
+                <div className="max-h-48 overflow-auto space-y-0.5">
+                  {crewResults.map((t) => (
+                    <button key={t.id} type="button" onClick={() => addCrew(t.id)}
+                      className="w-full flex items-center justify-between rounded-lg px-2.5 py-2 hover:bg-white/5 transition text-left">
+                      <span className="text-sm font-medium">{t.full_name}</span>
+                      <span className="ms text-indigo-300" style={{ fontSize: 18 }}>add_circle</span>
+                    </button>
+                  ))}
+                  {!crewResults.length && <p className="text-sm text-slate-500 px-2 py-2">No match.</p>}
+                </div>
+              )}
+            </div>
+          </section>
+        </div>
       </div>
+
+      {/* footer */}
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <p className="text-xs text-slate-500">
+          {items.length} item{items.length === 1 ? "" : "s"} · {crew.length} crew
+          {transfersCount > 0 ? ` · ${transfersCount} transfer${transfersCount === 1 ? "" : "s"} will be requested` : ""}
+        </p>
+        <div className="flex justify-end gap-2">
+          <Link href="/events" className="px-4 py-2.5 rounded-xl glass text-sm font-semibold hover:bg-white/10 transition">Cancel</Link>
+          <button onClick={submit} disabled={busy}
+            className="btn-primary text-sm font-semibold rounded-xl px-5 py-2.5 flex items-center gap-2 disabled:opacity-60">
+            {busy ? "Creating…" : <>Create event <span className="ms" style={{ fontSize: 18 }}>check</span></>}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Stepper({ value, min, max, disabled, onChange }: {
+  value: number; min: number; max?: number; disabled?: boolean; onChange: (v: number) => void;
+}) {
+  const atMax = max !== undefined && value >= max;
+  return (
+    <div className="flex items-center gap-1 shrink-0">
+      <button type="button" disabled={disabled || value <= min} onClick={() => onChange(value - 1)}
+        className="h-7 w-7 grid place-items-center rounded-lg glass hover:bg-white/10 disabled:opacity-30">
+        <span className="ms" style={{ fontSize: 16 }}>remove</span>
+      </button>
+      <span className={`w-8 text-center font-bold text-sm ${disabled ? "text-slate-600" : ""}`}>{value}</span>
+      <button type="button" disabled={disabled || atMax} onClick={() => onChange(value + 1)}
+        className="h-7 w-7 grid place-items-center rounded-lg glass hover:bg-white/10 disabled:opacity-30">
+        <span className="ms" style={{ fontSize: 16 }}>add</span>
+      </button>
     </div>
   );
 }
