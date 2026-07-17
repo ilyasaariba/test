@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { createEvent, type NewEventInput } from "./actions";
+import { createEvent, createTechnicianAccount, type NewEventInput } from "./actions";
 import { fmtDMY } from "@/lib/ui";
 import RangeCalendar from "@/components/RangeCalendar";
 import Dropdown from "@/components/Dropdown";
@@ -159,13 +159,25 @@ export default function EventForm({
 
   // ----- crew (drag & drop into Leads / Crew) -----
   const [crew, setCrew] = useState<{ userId: string; isLead: boolean }[]>([]);
+  const [extraTechs, setExtraTechs] = useState<Tech[]>([]); // accounts created here, not yet in the roster prop
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [overZone, setOverZone] = useState<"lead" | "crew" | "pool" | null>(null);
 
-  const candidates: (Tech & { isYou?: boolean })[] = useMemo(
-    () => [{ id: me.id, full_name: me.full_name, isYou: true }, ...technicians.filter((t) => t.id !== me.id)],
-    [technicians, me],
-  );
+  // new-technician inline form
+  const [newOpen, setNewOpen] = useState(false);
+  const [nFull, setNFull] = useState(""); const [nUser, setNUser] = useState(""); const [nPass, setNPass] = useState("");
+  const [crewErr, setCrewErr] = useState<string | null>(null);
+  const [creating, startCreate] = useTransition();
+
+  const candidates: (Tech & { isYou?: boolean })[] = useMemo(() => {
+    const seen = new Set<string>([me.id]);
+    const out: (Tech & { isYou?: boolean })[] = [{ id: me.id, full_name: me.full_name, isYou: true }];
+    for (const t of [...technicians, ...extraTechs]) {
+      if (seen.has(t.id)) continue;
+      seen.add(t.id); out.push(t);
+    }
+    return out;
+  }, [technicians, extraTechs, me]);
   const candMap = useMemo(() => Object.fromEntries(candidates.map((c) => [c.id, c])), [candidates]);
   const crewIds = new Set(crew.map((c) => c.userId));
   const pool = candidates.filter((c) => !crewIds.has(c.id));
@@ -182,6 +194,16 @@ export default function EventForm({
   function onDrop(target: "lead" | "crew" | "pool") {
     if (draggingId) place(draggingId, target);
     setDraggingId(null); setOverZone(null);
+  }
+  function createTech() {
+    setCrewErr(null);
+    startCreate(async () => {
+      const r = await createTechnicianAccount(nFull, nUser, nPass);
+      if ("error" in r) { setCrewErr(r.error); return; }
+      setExtraTechs((prev) => [...prev, { id: r.id, full_name: r.full_name }]);
+      setCrew((prev) => [...prev, { userId: r.id, isLead: false }]); // straight into the crew
+      setNFull(""); setNUser(""); setNPass(""); setNewOpen(false);
+    });
   }
 
   // ----- submit -----
@@ -434,8 +456,39 @@ export default function EventForm({
 
           {/* ---- crew: drag & drop ---- */}
           <section className="card glass rounded-2xl p-6 reveal" style={{ animationDelay: ".3s" }}>
-            <h2 className="font-bold flex items-center gap-2"><span className="ms grad-text" style={{ fontSize: 20 }}>groups</span> Crew</h2>
-            <p className="text-slate-400 text-xs mt-0.5 mb-4">Drag people into <span className="text-amber-300 font-semibold">Leads</span> or <span className="text-[var(--accent-hex)] font-semibold">Crew</span>. A lead can run the event when you&apos;re busy.</p>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 className="font-bold flex items-center gap-2"><span className="ms grad-text" style={{ fontSize: 20 }}>groups</span> Crew</h2>
+                <p className="text-slate-400 text-xs mt-0.5 mb-4">Drag people into <span className="text-amber-300 font-semibold">Leads</span> or <span className="text-[var(--accent-hex)] font-semibold">Crew</span>. A lead can run the event when you&apos;re busy.</p>
+              </div>
+              <button type="button" onClick={() => { setCrewErr(null); setNewOpen((o) => !o); }}
+                className="px-3 py-1.5 rounded-lg text-sm font-semibold glass hover:bg-white/10 transition flex items-center gap-1 shrink-0">
+                <span className="ms" style={{ fontSize: 18 }}>{newOpen ? "close" : "person_add"}</span>
+                {newOpen ? "Close" : "New technician"}
+              </button>
+            </div>
+
+            {/* create a brand-new technician account, dropped straight into the crew */}
+            {newOpen && (
+              <div className="rounded-xl ring-1 ring-white/10 bg-white/[.03] p-3 mb-4 space-y-2.5">
+                {crewErr && <div className="rounded-lg bg-rose-500/10 text-rose-300 ring-1 ring-rose-400/30 px-3 py-2 text-sm">{crewErr}</div>}
+                <div className="grid sm:grid-cols-3 gap-2">
+                  <input value={nFull} onChange={(e) => setNFull(e.target.value)} placeholder="Full name"
+                    className="rounded-lg glass px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500 placeholder:text-slate-500" />
+                  <input value={nUser} onChange={(e) => setNUser(e.target.value)} placeholder="username" autoComplete="off"
+                    className="rounded-lg glass px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500 placeholder:text-slate-500" />
+                  <input value={nPass} onChange={(e) => setNPass(e.target.value)} type="password" placeholder="password (6+)" autoComplete="new-password"
+                    className="rounded-lg glass px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500 placeholder:text-slate-500" />
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[11px] text-slate-500">Creates a technician login and adds them to the crew.</span>
+                  <button type="button" onClick={createTech} disabled={creating}
+                    className="btn-primary text-sm font-semibold rounded-lg px-3.5 py-2 flex items-center gap-1.5 disabled:opacity-60">
+                    <span className="ms" style={{ fontSize: 16 }}>person_add</span>{creating ? "Creating…" : "Create & add"}
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* drop zones */}
             <div className="grid sm:grid-cols-2 gap-3">

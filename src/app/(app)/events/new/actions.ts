@@ -3,8 +3,40 @@
 import { redirect } from "next/navigation";
 import { getProfile } from "@/lib/dal";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 type SB = Awaited<ReturnType<typeof createClient>>;
+
+// Create a technician account while building an event (before the event exists).
+// Returns the new user so the form can drop them straight into the crew.
+export async function createTechnicianAccount(
+  fullName: string, username: string, password: string,
+): Promise<{ id: string; full_name: string } | { error: string }> {
+  const profile = await getProfile();
+  if (profile.role !== "engineer" && profile.role !== "admin") {
+    return { error: "Only the Engineer can add technicians." };
+  }
+  const u = username.trim().toLowerCase();
+  if (!fullName.trim()) return { error: "Full name is required." };
+  if (!/^[a-z0-9_.]{3,}$/.test(u)) return { error: "Username: 3+ chars, letters/numbers/dot/underscore only." };
+  if (password.length < 6) return { error: "Password must be at least 6 characters." };
+
+  const admin = createAdminClient();
+  const { data, error } = await admin.auth.admin.createUser({
+    email: `${u}@avlogistics.local`,
+    password,
+    email_confirm: true,
+    user_metadata: { username: u, full_name: fullName.trim(), role: "technician" },
+  });
+  if (error || !data.user) {
+    const msg = /already|exists|registered/i.test(error?.message ?? "")
+      ? "That username is already taken." : (error?.message ?? "Could not create the account.");
+    return { error: msg };
+  }
+  // The handle_new_user trigger creates the app_users row from metadata; stamp the creator.
+  await admin.from("app_users").update({ created_by: profile.id }).eq("id", data.user.id);
+  return { id: data.user.id, full_name: fullName.trim() };
+}
 
 export type NewEventTransfer = { fromEventId: string; quantity: number; assignedTo: string };
 export type NewEventLine = {
