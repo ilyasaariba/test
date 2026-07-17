@@ -276,6 +276,31 @@ export default function EventForm({
             <h2 className="font-bold flex items-center gap-2"><span className="ms grad-text" style={{ fontSize: 20 }}>inventory_2</span> Equipment</h2>
             <p className="text-slate-400 text-xs mt-0.5 mb-4">Add what you need, then source each item from the warehouse and/or a transfer from another event.</p>
 
+            {/* add an item — always on top; focusing it collapses the open editor */}
+            <div className="glass rounded-xl p-2 mb-3">
+              <div className="flex items-center gap-2 px-1.5 pb-1.5">
+                <span className="ms text-slate-400" style={{ fontSize: 18 }}>{items.length ? "add" : "search"}</span>
+                <input value={q} onFocus={() => setExpandedId(null)} onChange={(e) => setQ(e.target.value)}
+                  placeholder={items.length ? "Add another item…" : "Search equipment to add…"}
+                  className="bg-transparent outline-none text-sm w-full placeholder:text-slate-500" />
+              </div>
+              {q && (
+                <div className="max-h-52 overflow-auto space-y-0.5">
+                  {results.map((e) => (
+                    <button key={e.id} type="button" onClick={() => addItem(e)}
+                      className="w-full flex items-center justify-between rounded-lg px-2.5 py-2 hover:bg-white/5 transition text-left">
+                      <span className="text-sm font-medium">{e.name}</span>
+                      <span className="flex items-center gap-1.5 text-[11px] text-slate-500">
+                        {e.category} · <span className={e.available <= 0 ? "text-rose-300" : "text-emerald-300/80"}>{e.available} avail.</span>
+                        <span className="ms text-indigo-300" style={{ fontSize: 18 }}>add_circle</span>
+                      </span>
+                    </button>
+                  ))}
+                  {!results.length && <p className="text-sm text-slate-500 px-2 py-2">No match.</p>}
+                </div>
+              )}
+            </div>
+
             <div className="space-y-2">
               {items.map((it) => {
                 const holders = holdersFor(it.equip);
@@ -386,31 +411,6 @@ export default function EventForm({
                   </div>
                 );
               })}
-            </div>
-
-            {/* add an item — focusing this collapses the open editor */}
-            <div className="glass rounded-xl p-2 mt-2">
-              <div className="flex items-center gap-2 px-1.5 pb-1.5">
-                <span className="ms text-slate-400" style={{ fontSize: 18 }}>{items.length ? "add" : "search"}</span>
-                <input value={q} onFocus={() => setExpandedId(null)} onChange={(e) => setQ(e.target.value)}
-                  placeholder={items.length ? "Add another item…" : "Search equipment to add…"}
-                  className="bg-transparent outline-none text-sm w-full placeholder:text-slate-500" />
-              </div>
-              {q && (
-                <div className="max-h-52 overflow-auto space-y-0.5">
-                  {results.map((e) => (
-                    <button key={e.id} type="button" onClick={() => addItem(e)}
-                      className="w-full flex items-center justify-between rounded-lg px-2.5 py-2 hover:bg-white/5 transition text-left">
-                      <span className="text-sm font-medium">{e.name}</span>
-                      <span className="flex items-center gap-1.5 text-[11px] text-slate-500">
-                        {e.category} · <span className={e.available <= 0 ? "text-rose-300" : "text-emerald-300/80"}>{e.available} avail.</span>
-                        <span className="ms text-indigo-300" style={{ fontSize: 18 }}>add_circle</span>
-                      </span>
-                    </button>
-                  ))}
-                  {!results.length && <p className="text-sm text-slate-500 px-2 py-2">No match.</p>}
-                </div>
-              )}
             </div>
           </section>
 
