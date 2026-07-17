@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { eventBadge, isOverdue, fmtDMY, fmtRange, ROLE_LABEL } from "@/lib/ui";
 import CountUp from "@/components/CountUp";
+import PageHeader from "@/components/PageHeader";
 
 const ACTIVE_EXCLUDE = ["archived", "cancelled"];
 
@@ -126,16 +127,19 @@ export default async function BossDashboard({ profile }: { profile: { full_name:
   return (
     <div className="space-y-6">
       {/* hero */}
-      <div className="flex items-end justify-between gap-4 reveal" style={{ animationDelay: ".05s" }}>
-        <div>
-          <span className="text-[10.5px] font-semibold uppercase tracking-[.12em] text-[var(--faint)]">Command center</span>
-          <h1 className="text-xl font-semibold tracking-tight mt-0.5">Welcome back, {firstName}</h1>
-          <p className="text-slate-400 text-sm mt-0.5">The whole operation, at a glance — {fmtDMY(new Date().toISOString())}.</p>
-        </div>
-        <div className="hidden md:flex items-center gap-2 glass rounded-xl px-3 py-2">
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 dot-live" />
-          <span className="text-xs text-slate-300 font-medium">{liveEvents.length} live · {activeEvents.length} active</span>
-        </div>
+      <div className="reveal" style={{ animationDelay: ".05s" }}>
+        <PageHeader
+          icon="insights"
+          eyebrow="Command center"
+          title={<>Welcome back, {firstName}</>}
+          sub={<>The whole operation, at a glance — {fmtDMY(new Date().toISOString())}.</>}
+          action={
+            <div className="hidden md:flex items-center gap-2 glass rounded-xl px-3 py-2">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 dot-live" />
+              <span className="text-xs text-slate-300 font-medium">{liveEvents.length} live · {activeEvents.length} active</span>
+            </div>
+          }
+        />
       </div>
 
       {/* KPIs */}

@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { fmtDMY, MISSING_PHASE, MISSING_REASON, missingStatusBadge } from "@/lib/ui";
 import DeclareMissing from "@/components/DeclareMissing";
+import PageHeader from "@/components/PageHeader";
 import { resolveMissingItem } from "./actions";
 
 type Item = {
@@ -84,16 +85,16 @@ export default function MissingBoard({
 
   return (
     <div className="space-y-5">
-      <div className="flex items-start justify-between gap-3 flex-wrap reveal" style={{ animationDelay: ".06s" }}>
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight">Missing &amp; lost gear</h1>
-          <p className="text-slate-400 text-sm mt-1">
-            {open.length} open{criticalOpen > 0 ? <> · <span className="text-rose-300 font-semibold">{criticalOpen} critical</span></> : null} · {resolved.length} resolved
-          </p>
-        </div>
-        {canDeclare && (
-          <DeclareMissing equipment={equipment} events={events} buttonLabel="Declare missing item" />
-        )}
+      <div className="reveal" style={{ animationDelay: ".06s" }}>
+        <PageHeader
+          icon="report"
+          tint="crit"
+          title="Missing & lost gear"
+          sub={<>{open.length} open{criticalOpen > 0 ? <> · <span className="text-rose-300 font-semibold">{criticalOpen} critical</span></> : null} · {resolved.length} resolved</>}
+          action={canDeclare && (
+            <DeclareMissing equipment={equipment} events={events} buttonLabel="Declare missing item" />
+          )}
+        />
       </div>
 
       {err && <div className="rounded-lg bg-rose-500/10 text-rose-300 ring-1 ring-rose-400/30 px-3 py-2 text-sm">{err}</div>}

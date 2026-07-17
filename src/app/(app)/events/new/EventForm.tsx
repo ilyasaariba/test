@@ -6,6 +6,7 @@ import { createEvent, type NewEventInput } from "./actions";
 import { fmtDMY } from "@/lib/ui";
 import RangeCalendar from "@/components/RangeCalendar";
 import NumberInput from "@/components/NumberInput";
+import PageHeader from "@/components/PageHeader";
 
 type Equip = { id: string; name: string; category: string; available: number };
 
@@ -89,11 +90,12 @@ export default function EventForm({ equipment }: { equipment: Equip[] }) {
   return (
     <div className="max-w-3xl mx-auto space-y-5">
       <div className="reveal" style={{ animationDelay: ".05s" }}>
-        <Link href="/events" className="text-sm text-slate-400 hover:text-slate-200 flex items-center gap-1 w-fit">
-          <span className="ms" style={{ fontSize: 16 }}>arrow_back</span> Events
-        </Link>
-        <h1 className="text-xl font-semibold tracking-tight mt-2">New event</h1>
-        <p className="text-slate-400 text-sm mt-1">Set the dates, shape the phases, and add the gear you'll need.</p>
+        <PageHeader
+          icon="add_circle"
+          back={{ href: "/events", label: "Events" }}
+          title="New event"
+          sub="Set the dates, shape the phases, and add the gear you'll need."
+        />
       </div>
 
       {error && <div className="rounded-xl bg-rose-500/10 text-rose-300 ring-1 ring-rose-400/30 px-3.5 py-2.5 text-sm font-medium reveal">{error}</div>}

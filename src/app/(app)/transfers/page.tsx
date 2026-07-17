@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getProfile } from "@/lib/dal";
 import { createClient } from "@/lib/supabase/server";
 import { fmtDMY } from "@/lib/ui";
+import PageHeader from "@/components/PageHeader";
 
 const T: Record<string, { label: string; cls: string; dot: string }> = {
   requested: { label: "Requested", cls: "bg-fuchsia-500/15 text-fuchsia-300 ring-fuchsia-400/30", dot: "bg-fuchsia-400" },
@@ -30,11 +31,11 @@ export default async function TransferRecordPage() {
   return (
     <div className="max-w-4xl mx-auto space-y-5">
       <div className="reveal" style={{ animationDelay: ".06s" }}>
-        <h1 className="text-xl font-semibold tracking-tight">Transfer Record</h1>
-        <p className="text-slate-400 text-sm mt-1">
-          Every equipment move — who, from where to where, and when · {list.length} total
-          {active ? ` · ${active} in progress` : ""}{completed ? ` · ${completed} completed` : ""}
-        </p>
+        <PageHeader
+          icon="swap_horiz"
+          title="Transfer Record"
+          sub={<>Every equipment move — who, from where to where, and when · {list.length} total{active ? ` · ${active} in progress` : ""}{completed ? ` · ${completed} completed` : ""}</>}
+        />
       </div>
 
       {list.length ? (

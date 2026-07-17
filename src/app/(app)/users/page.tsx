@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getProfile } from "@/lib/dal";
 import { createClient } from "@/lib/supabase/server";
 import { ROLE_LABEL } from "@/lib/ui";
+import PageHeader from "@/components/PageHeader";
 
 export default async function UsersPage() {
   const profile = await getProfile();
@@ -17,8 +18,7 @@ export default async function UsersPage() {
   return (
     <div className="max-w-3xl mx-auto space-y-5">
       <div className="reveal" style={{ animationDelay: ".06s" }}>
-        <h1 className="text-xl font-semibold tracking-tight">Users</h1>
-        <p className="text-slate-400 text-sm mt-1">{users.length} accounts</p>
+        <PageHeader icon="group" title="Users" sub={`${users.length} accounts`} />
       </div>
 
       <div className="card glass rounded-2xl divide-y divide-white/5 reveal" style={{ animationDelay: ".12s" }}>

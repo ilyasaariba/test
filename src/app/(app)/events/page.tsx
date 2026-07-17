@@ -3,6 +3,7 @@ import { getProfile } from "@/lib/dal";
 import { createClient } from "@/lib/supabase/server";
 import { eventBadge, fmtRange } from "@/lib/ui";
 import EventsToolbar from "./EventsToolbar";
+import PageHeader from "@/components/PageHeader";
 
 export default async function EventsPage({
   searchParams,
@@ -38,16 +39,17 @@ export default async function EventsPage({
 
   return (
     <div className="max-w-5xl mx-auto space-y-5">
-      <div className="flex items-center justify-between reveal" style={{ animationDelay: ".06s" }}>
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight">{isTech ? "My events" : "Events"}</h1>
-          <p className="text-slate-400 text-sm mt-0.5">{events.length}{filtered ? " match" + (events.length === 1 ? "" : "es") : " total"}</p>
-        </div>
-        {canCreate && (
-          <Link href="/events/new" className="btn-primary grad text-white text-sm font-semibold rounded-xl px-4 py-2.5 flex items-center gap-2">
-            <span className="ms" style={{ fontSize: 18 }}>add</span> New event
-          </Link>
-        )}
+      <div className="reveal" style={{ animationDelay: ".06s" }}>
+        <PageHeader
+          icon="event"
+          title={isTech ? "My events" : "Events"}
+          sub={`${events.length}${filtered ? " match" + (events.length === 1 ? "" : "es") : " total"}`}
+          action={canCreate && (
+            <Link href="/events/new" className="btn-primary text-sm font-semibold rounded-xl px-4 py-2.5 flex items-center gap-2">
+              <span className="ms" style={{ fontSize: 18 }}>add</span> New event
+            </Link>
+          )}
+        />
       </div>
 
       {!isTech && <EventsToolbar />}

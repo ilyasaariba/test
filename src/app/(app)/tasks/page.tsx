@@ -1,6 +1,7 @@
 import { getProfile } from "@/lib/dal";
 import { createClient } from "@/lib/supabase/server";
 import TaskList from "./TaskList";
+import PageHeader from "@/components/PageHeader";
 
 export default async function TasksPage() {
   const profile = await getProfile();
@@ -39,12 +40,13 @@ export default async function TasksPage() {
   return (
     <div className="max-w-4xl mx-auto space-y-5">
       <div className="reveal" style={{ animationDelay: ".06s" }}>
-        <h1 className="text-xl font-semibold tracking-tight">{mine ? "My tasks" : "Tasks"}</h1>
-        <p className="text-slate-400 text-sm mt-1">
-          {mine
+        <PageHeader
+          icon="task_alt"
+          title={mine ? "My tasks" : "Tasks"}
+          sub={<>{mine
             ? "Jobs assigned to you by the Engineer — start them and mark them done."
-            : "Jobs the Engineer assigns to technicians (split/distribute gear, transfer tasks)."} · {tasks.length} total
-        </p>
+            : "Jobs the Engineer assigns to technicians (split/distribute gear, transfer tasks)."} · {tasks.length} total</>}
+        />
       </div>
 
       <TaskList tasks={tasks} canAct={mine} showAssignee={!mine} />

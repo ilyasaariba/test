@@ -1,9 +1,9 @@
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getProfile } from "@/lib/dal";
 import { createClient } from "@/lib/supabase/server";
 import { statusBadge, fmtDMY } from "@/lib/ui";
 import PrepBoard from "./PrepBoard";
+import PageHeader from "@/components/PageHeader";
 
 export default async function WarehousePrepPage({
   params,
@@ -59,18 +59,13 @@ export default async function WarehousePrepPage({
   return (
     <div className="max-w-4xl mx-auto space-y-5">
       <div className="reveal" style={{ animationDelay: ".06s" }}>
-        <Link href="/warehouse/requests" className="text-sm text-slate-400 hover:text-slate-200 flex items-center gap-1 w-fit">
-          <span className="ms" style={{ fontSize: 16 }}>arrow_back</span> Requests
-        </Link>
-        <div className="flex items-start justify-between mt-2">
-          <div>
-            <h1 className="text-[22px] font-semibold tracking-tight">{event.name}</h1>
-            <p className="text-slate-400 text-sm mt-1">
-              {event.client ? `${event.client} · ` : ""}{event.location ?? ""} · live {fmtDMY(event.live_start)}
-            </p>
-          </div>
-          <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ring-1 flex items-center gap-1.5 ${b.cls}`}>{b.label}</span>
-        </div>
+        <PageHeader
+          icon="assignment"
+          back={{ href: "/warehouse/requests", label: "Requests" }}
+          title={event.name}
+          sub={<>{event.client ? `${event.client} · ` : ""}{event.location ?? ""} · live {fmtDMY(event.live_start)}</>}
+          action={<span className={`px-2.5 py-1 rounded-full text-xs font-semibold ring-1 flex items-center gap-1.5 ${b.cls}`}>{b.label}</span>}
+        />
       </div>
 
       <PrepBoard eventId={id} status={event.status} lines={shaped} discrepancies={discrepancies} />

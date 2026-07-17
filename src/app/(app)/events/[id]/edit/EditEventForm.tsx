@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { fmtDMY } from "@/lib/ui";
 import RangeCalendar from "@/components/RangeCalendar";
+import PageHeader from "@/components/PageHeader";
 import { updateEventDetails, type EditEventInput } from "../manage";
 
 function toYMD(d: Date) {
@@ -86,11 +87,12 @@ export default function EditEventForm({
   return (
     <div className="max-w-3xl mx-auto space-y-5">
       <div className="reveal" style={{ animationDelay: ".05s" }}>
-        <Link href={`/events/${eventId}`} className="text-sm text-slate-400 hover:text-slate-200 flex items-center gap-1 w-fit">
-          <span className="ms" style={{ fontSize: 16 }}>arrow_back</span> Back to event
-        </Link>
-        <h1 className="text-xl font-semibold tracking-tight mt-2">Edit event</h1>
-        <p className="text-slate-400 text-sm mt-1">Update the details and dates. Manage equipment from the event page.</p>
+        <PageHeader
+          icon="edit"
+          back={{ href: `/events/${eventId}`, label: "Back to event" }}
+          title="Edit event"
+          sub="Update the details and dates. Manage equipment from the event page."
+        />
       </div>
 
       {error && <div className="rounded-xl bg-rose-500/10 text-rose-300 ring-1 ring-rose-400/30 px-3.5 py-2.5 text-sm font-medium reveal">{error}</div>}

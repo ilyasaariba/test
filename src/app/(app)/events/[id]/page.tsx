@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getProfile } from "@/lib/dal";
 import { createClient } from "@/lib/supabase/server";
@@ -13,6 +12,7 @@ import ReceiveBoard from "./ReceiveBoard";
 import TeardownBoard from "./TeardownBoard";
 import RequestEquipment from "./RequestEquipment";
 import IncomingArrivals from "./IncomingArrivals";
+import PageHeader from "@/components/PageHeader";
 
 const GEAR_OUT = ["received_on_site", "in_progress", "returning", "reconciliation"];
 
@@ -144,28 +144,27 @@ export default async function EventDetailPage({
   return (
     <div className="max-w-5xl mx-auto space-y-5">
       <div className="reveal" style={{ animationDelay: ".06s" }}>
-        <Link href="/events" className="text-sm text-slate-400 hover:text-slate-200 flex items-center gap-1 w-fit">
-          <span className="ms" style={{ fontSize: 16 }}>arrow_back</span> Events
-        </Link>
-        <div className="flex items-start justify-between mt-2">
-          <div>
-            <h1 className="text-[22px] font-semibold tracking-tight">{event.name}</h1>
-            <p className="text-slate-400 text-sm mt-1">{event.client ? `${event.client} · ` : ""}{event.location ?? ""}</p>
-          </div>
-          <div className="flex items-center gap-2">
-            {viewerIsLead && (
-              <span className="px-2.5 py-1 rounded-full text-xs font-semibold ring-1 bg-indigo-500/15 text-indigo-200 ring-indigo-400/30 flex items-center gap-1">
-                <span className="ms" style={{ fontSize: 14 }}>workspace_premium</span> You lead this
+        <PageHeader
+          icon="event"
+          back={{ href: "/events", label: "Events" }}
+          title={event.name}
+          sub={`${event.client ? `${event.client} · ` : ""}${event.location ?? ""}`}
+          action={
+            <div className="flex items-center gap-2">
+              {viewerIsLead && (
+                <span className="px-2.5 py-1 rounded-full text-xs font-semibold ring-1 bg-indigo-500/15 text-indigo-200 ring-indigo-400/30 flex items-center gap-1">
+                  <span className="ms" style={{ fontSize: 14 }}>workspace_premium</span> You lead this
+                </span>
+              )}
+              <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ring-1 flex items-center gap-1.5 ${b.cls}`}>
+                {b.live && <span className="h-1.5 w-1.5 rounded-full bg-[var(--good)] dot-live" />}{b.label}
               </span>
-            )}
-            <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ring-1 flex items-center gap-1.5 ${b.cls}`}>
-              {b.live && <span className="h-1.5 w-1.5 rounded-full bg-[var(--good)] dot-live" />}{b.label}
-            </span>
-            {canManage && !CLOSED.includes(event.status) && (
-              <EventActions eventId={id} />
-            )}
-          </div>
-        </div>
+              {canManage && !CLOSED.includes(event.status) && (
+                <EventActions eventId={id} />
+              )}
+            </div>
+          }
+        />
       </div>
 
       {/* lifecycle: request → prepare → ship → received → live */}

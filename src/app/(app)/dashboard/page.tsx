@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { fmtRange, eventBadge, isOverdue } from "@/lib/ui";
 import CountUp from "@/components/CountUp";
 import BossDashboard from "./BossDashboard";
+import PageHeader from "@/components/PageHeader";
 
 function progressPct(e: any): number {
   const s = e.montage_start ?? e.live_start;
@@ -86,16 +87,16 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between reveal" style={{ animationDelay: ".18s" }}>
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight">Good day, {firstName}</h1>
-          <p className="text-slate-400 text-sm mt-0.5">
-            {profile.role === "warehouse_manager" ? "Prep, ship, and check the gear back in."
-              : profile.role === "technician" ? "Here are your jobs and events."
-              : profile.role === "admin" ? "Full control across every workspace."
-              : "Plan events, source the gear, run the show."}
-          </p>
-        </div>
+      <div className="reveal" style={{ animationDelay: ".18s" }}>
+        <PageHeader
+          icon="waving_hand"
+          eyebrow={new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
+          title={<>Good day, {firstName}</>}
+          sub={profile.role === "warehouse_manager" ? "Prep, ship, and check the gear back in."
+            : profile.role === "technician" ? "Here are your jobs and events."
+            : profile.role === "admin" ? "Full control across every workspace."
+            : "Plan events, source the gear, run the show."}
+        />
       </div>
 
       {isWm && (

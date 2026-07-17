@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { fmtDMY } from "@/lib/ui";
 import PreparedCard from "./PreparedCard";
 import TopupCard from "./TopupCard";
+import PageHeader from "@/components/PageHeader";
 
 const GROUPS: { status: string; title: string; hint: string; accent: string; icon: string }[] = [
   { status: "sent_to_warehouse", title: "New requests", hint: "Engineer is waiting — start preparing.", accent: "text-sky-300", icon: "inbox" },
@@ -52,8 +53,11 @@ export default async function WarehouseRequestsPage() {
   return (
     <div className="max-w-4xl mx-auto space-y-5">
       <div className="reveal" style={{ animationDelay: ".06s" }}>
-        <h1 className="text-xl font-semibold tracking-tight">Requests</h1>
-        <p className="text-slate-400 text-sm mt-1">Prepare and ship equipment for the engineer&apos;s events · {events?.length ?? 0} active</p>
+        <PageHeader
+          icon="assignment"
+          title="Requests"
+          sub={<>Prepare and ship equipment for the engineer&apos;s events · {events?.length ?? 0} active</>}
+        />
       </div>
 
       {topups.length > 0 && (

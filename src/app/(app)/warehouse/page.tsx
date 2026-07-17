@@ -4,6 +4,7 @@ import OutBadge from "./OutBadge";
 import DeleteEquipmentButton from "./DeleteEquipmentButton";
 import WarehouseToolbar from "./WarehouseToolbar";
 import AddEquipmentForm from "./AddEquipmentForm";
+import PageHeader from "@/components/PageHeader";
 
 export default async function WarehousePage({
   searchParams,
@@ -66,10 +67,11 @@ export default async function WarehousePage({
   return (
     <div className="max-w-5xl mx-auto space-y-5">
       <div className="reveal" style={{ animationDelay: ".06s" }}>
-        <h1 className="text-xl font-semibold tracking-tight">Warehouse</h1>
-        <p className="text-slate-400 text-sm mt-1">
-          {equipment.length} items · {totalOwned.toLocaleString()} owned · <span className="text-amber-300">{totalOut.toLocaleString()} out at events</span>
-        </p>
+        <PageHeader
+          icon="inventory_2"
+          title="Warehouse"
+          sub={<>{equipment.length} items · {totalOwned.toLocaleString()} owned · <span className="text-amber-300 font-medium">{totalOut.toLocaleString()} out at events</span></>}
+        />
       </div>
 
       <WarehouseToolbar />
