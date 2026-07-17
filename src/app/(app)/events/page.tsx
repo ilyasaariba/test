@@ -37,7 +37,7 @@ export default async function EventsPage({
   const filtered = !!(q || status);
 
   return (
-    <div className="max-w-5xl space-y-5">
+    <div className="max-w-5xl mx-auto space-y-5">
       <div className="flex items-center justify-between reveal" style={{ animationDelay: ".06s" }}>
         <div>
           <h1 className="text-xl font-semibold tracking-tight">{isTech ? "My events" : "Events"}</h1>

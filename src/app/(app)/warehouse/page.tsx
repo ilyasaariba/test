@@ -61,7 +61,7 @@ export default async function WarehousePage({
   for (const e of shown) (byCat[e.category] ??= []).push(e);
 
   return (
-    <div className="max-w-4xl space-y-5">
+    <div className="max-w-5xl mx-auto space-y-5">
       <div className="reveal" style={{ animationDelay: ".06s" }}>
         <h1 className="text-xl font-semibold tracking-tight">Warehouse</h1>
         <p className="text-slate-400 text-sm mt-1">

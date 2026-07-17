@@ -87,7 +87,7 @@ export default function EventForm({ equipment }: { equipment: Equip[] }) {
   }
 
   return (
-    <div className="max-w-3xl space-y-5">
+    <div className="max-w-3xl mx-auto space-y-5">
       <div className="reveal" style={{ animationDelay: ".05s" }}>
         <Link href="/events" className="text-sm text-slate-400 hover:text-slate-200 flex items-center gap-1 w-fit">
           <span className="ms" style={{ fontSize: 16 }}>arrow_back</span> Events

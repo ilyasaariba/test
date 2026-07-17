@@ -28,7 +28,7 @@ export default async function TransferRecordPage() {
   const active = list.filter((t: any) => ["requested", "sent", "planned", "received"].includes(t.status)).length;
 
   return (
-    <div className="max-w-4xl space-y-5">
+    <div className="max-w-4xl mx-auto space-y-5">
       <div className="reveal" style={{ animationDelay: ".06s" }}>
         <h1 className="text-xl font-semibold tracking-tight">Transfer Record</h1>
         <p className="text-slate-400 text-sm mt-1">

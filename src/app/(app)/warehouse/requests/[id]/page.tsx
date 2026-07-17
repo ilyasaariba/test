@@ -57,7 +57,7 @@ export default async function WarehousePrepPage({
   const b = statusBadge(event.status);
 
   return (
-    <div className="max-w-4xl space-y-5">
+    <div className="max-w-4xl mx-auto space-y-5">
       <div className="reveal" style={{ animationDelay: ".06s" }}>
         <Link href="/warehouse/requests" className="text-sm text-slate-400 hover:text-slate-200 flex items-center gap-1 w-fit">
           <span className="ms" style={{ fontSize: 16 }}>arrow_back</span> Requests

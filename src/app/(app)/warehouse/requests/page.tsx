@@ -50,7 +50,7 @@ export default async function WarehouseRequestsPage() {
   }));
 
   return (
-    <div className="max-w-4xl space-y-5">
+    <div className="max-w-4xl mx-auto space-y-5">
       <div className="reveal" style={{ animationDelay: ".06s" }}>
         <h1 className="text-xl font-semibold tracking-tight">Requests</h1>
         <p className="text-slate-400 text-sm mt-1">Prepare and ship equipment for the engineer&apos;s events · {events?.length ?? 0} active</p>

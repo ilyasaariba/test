@@ -38,7 +38,7 @@ export default async function MissingPage() {
   const isStaff = ["warehouse_manager", "engineer", "admin"].includes(profile.role);
 
   return (
-    <div className="max-w-4xl">
+    <div className="max-w-4xl mx-auto">
       <MissingBoard items={items} equipment={equipment} events={events} canDeclare={isStaff} canResolve={isStaff} />
     </div>
   );
