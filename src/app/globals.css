@@ -2,25 +2,42 @@
 
 /* ============================================================
    M212 Logistics — "Enterprise Clean" design system (Model 1)
-   Light, calm, SAP-grade. One corporate blue accent; color is
-   reserved for status and actions. Same class vocabulary as the
-   old dark theme (glass/card/grad/btn-primary/nav-*) so every
-   screen inherits the new look.
+   Dual theme: dark by default, light on request. Every surface,
+   text and status color flows from the tokens below; the theme
+   is switched by the data-theme attribute on <html>.
+   Same class vocabulary as the old design (glass/card/grad/
+   btn-primary/nav-*) so every screen inherits the look.
    ============================================================ */
 
 :root{
+  /* ---- light theme values (data-theme="light") ---- */
   --bg:#F5F6F7; --surface:#FFFFFF; --surface2:#F0F3F6;
   --border:#DCE3EA; --border2:#E8EDF2;
   --ink:#1B2A3A; --sub:#566B80; --faint:#8296A9;
 
   --accent-hex:#0A6ED1; --accent-h:#085CAF; --accent-soft:#EAF4FC;
-  --good:#16803C; --good-soft:#EBF7EF;
-  --warn:#B25E09; --warn-soft:#FCF3E7;
-  --crit:#C0271C; --crit-soft:#FBEEED;
+  /* fills for solid buttons/brand blocks (kept separate so dark
+     mode can use a lighter accent for text but a deeper fill) */
+  --accent-fill:#0A6ED1; --accent-fill-h:#085CAF;
+  --accent-rgb:10,110,209;
+
+  --good:#16803C;  --good-soft:#EBF7EF;  --good-rgb:22,128,60;
+  --warn:#B25E09;  --warn-soft:#FCF3E7;
+  --crit:#C0271C;  --crit-soft:#FBEEED;
+  --info:#1D4ED8;  --info-soft:#E5EEFB;
+  --teal:#0F766E;  --teal-soft:#E6F4F1;
+  --cyan:#0E7490;  --cyan-soft:#E5F3F8;
+  --orange:#C2410C;--orange-soft:#FBEFE7;
+  --neutral-soft:#E8EDF2; --neutral-ink:#46596B;
+
+  --shadow-1:0 1px 2px rgba(27,42,58,.05), 0 2px 8px rgba(27,42,58,.04);
+  --shadow-2:0 2px 4px rgba(27,42,58,.06), 0 6px 16px rgba(27,42,58,.06);
+  --card-hover-border:#C7D2DD;
+  --scrollbar:rgba(27,42,58,.16); --scrollbar-h:rgba(27,42,58,.26);
 
   /* legacy tokens still referenced by components — all resolve to the one accent */
-  --accent:10,110,209; --glow:10,110,209;
-  --ind:#0A6ED1; --vio:#0A6ED1; --fuc:#0A6ED1;
+  --accent:var(--accent-rgb); --glow:var(--accent-rgb);
+  --ind:var(--accent-hex); --vio:var(--accent-hex); --fuc:var(--accent-hex);
 
   --background:var(--bg); --foreground:var(--ink);
 }
@@ -32,9 +49,10 @@
   --color-foreground:#1B2A3A;
 
   /* The old dark UI paints text/fills with white + light shades.
-     On the light theme those tokens mean "ink", so every legacy
-     utility (text-white, bg-white/5, ring-white/10, text-slate-300…)
-     lands on a readable enterprise value. */
+     These remaps make every legacy utility (text-white, bg-white/5,
+     ring-white/10, text-slate-300…) land on a readable value for the
+     LIGHT theme; the dark theme re-overrides the generated variables
+     further down. */
   --color-white:#1B2A3A;
 
   --color-slate-100:#22384E;
@@ -66,6 +84,71 @@
   --color-sky-500:#0A6ED1;   --color-sky-600:#085CAF;
 }
 
+/* ============================================================
+   DARK THEME (default) — deep blue-grey enterprise night mode.
+   Overrides both our tokens and the Tailwind-generated color
+   variables, so every utility class lands correctly.
+   ============================================================ */
+html[data-theme="dark"]{
+  --bg:#0E1319; --surface:#161D26; --surface2:#1F2935;
+  --border:#2B3644; --border2:#242E3B;
+  --ink:#E3EAF2; --sub:#9AACBE; --faint:#64788C;
+
+  --accent-hex:#4CA2E8; --accent-h:#6BB4EE; --accent-soft:#14283E;
+  --accent-fill:#1E7FD8; --accent-fill-h:#2E8CE0;
+  --accent-rgb:76,162,232;
+
+  --good:#45C07A;  --good-soft:#12301F;  --good-rgb:69,192,122;
+  --warn:#E2A244;  --warn-soft:#32250E;
+  --crit:#EF6A60;  --crit-soft:#3A1A17;
+  --info:#83AAF8;  --info-soft:#182A47;
+  --teal:#43BFB2;  --teal-soft:#0F2E2B;
+  --cyan:#4EC3E0;  --cyan-soft:#0F2C37;
+  --orange:#EE9155;--orange-soft:#331F10;
+  --neutral-soft:#232E3B; --neutral-ink:#A9BACB;
+
+  --shadow-1:0 1px 2px rgba(0,0,0,.35), 0 2px 10px rgba(0,0,0,.28);
+  --shadow-2:0 2px 4px rgba(0,0,0,.35), 0 6px 18px rgba(0,0,0,.3);
+  --card-hover-border:#37455A;
+  --scrollbar:rgba(255,255,255,.14); --scrollbar-h:rgba(255,255,255,.24);
+
+  /* Tailwind-generated palette vars — dark equivalents */
+  --color-background:#0E1319;
+  --color-foreground:#E3EAF2;
+
+  --color-white:#E9EFF6;
+
+  --color-slate-100:#DDE6EF;
+  --color-slate-200:#C6D3E0;
+  --color-slate-300:#9FB2C4;
+  --color-slate-400:#8499AD;
+  --color-slate-500:#6B8299;
+
+  --color-sky-200:#66B2F0;   --color-sky-300:#66B2F0;   --color-sky-400:#4CA2E8;
+  --color-amber-200:#E5AE55; --color-rose-200:#F07F95;  --color-emerald-200:#49C27F;
+  --color-teal-200:#47C3B6;  --color-cyan-200:#54C6E2;  --color-orange-200:#F0945B;
+  --color-blue-200:#86ACF8;
+  --color-blue-300:#86ACF8;  --color-blue-400:#7AA2F7;
+  --color-amber-300:#E5AE55; --color-amber-400:#D99B45;
+  --color-teal-300:#47C3B6;  --color-teal-400:#3AB6A9;
+  --color-violet-300:#4CA2E8;--color-violet-400:#4CA2E8;
+  --color-cyan-300:#54C6E2;  --color-cyan-400:#43BAD8;
+  --color-orange-300:#F0945B;--color-orange-400:#ED8443;
+  --color-emerald-300:#49C27F;--color-emerald-400:#3FBA74;
+  --color-rose-300:#F07F95;  --color-rose-400:#EE6A84;
+
+  --color-indigo-200:#66B2F0; --color-indigo-300:#4CA2E8; --color-indigo-400:#4CA2E8;
+  --color-indigo-500:#4CA2E8; --color-indigo-600:#3B8FD3;
+  --color-violet-200:#66B2F0; --color-violet-500:#4CA2E8; --color-violet-600:#3B8FD3;
+  --color-fuchsia-200:#66B2F0;--color-fuchsia-300:#4CA2E8;--color-fuchsia-400:#4CA2E8;
+  --color-fuchsia-500:#4CA2E8;--color-fuchsia-600:#3B8FD3;
+  --color-sky-500:#4CA2E8;   --color-sky-600:#3B8FD3;
+}
+
+/* native form controls (date pickers, selects, scrollbars) follow the theme */
+html{ color-scheme:light; }
+html[data-theme="dark"]{ color-scheme:dark; }
+
 *{ box-sizing:border-box; }
 html,body{ background:var(--bg); color:var(--ink); }
 body{
@@ -79,9 +162,9 @@ td,th,.num{ font-variant-numeric:tabular-nums; }
 
 :focus-visible{ outline:2px solid var(--accent-hex); outline-offset:2px; }
 
-/* native dropdown option lists — light like the rest of the UI */
+/* native dropdown option lists — follow the theme */
 select{ color:var(--ink); }
-option, optgroup{ background-color:#FFFFFF; color:#1B2A3A; }
+option, optgroup{ background-color:var(--surface); color:var(--ink); }
 
 /* number inputs: hide the native up/down spinner — we use the +/- buttons instead */
 input[type=number]::-webkit-inner-spin-button,
@@ -99,28 +182,28 @@ input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="
 .aurora,.blob,.grid-fx{ display:none; }
 
 /* ---- surfaces ---- */
-/* "glass" panels are now plain white cards with a hairline border */
+/* "glass" panels are flat cards with a hairline border */
 .glass{
   background:var(--surface);
   border:1px solid var(--border);
   border-radius:12px;
-  box-shadow:0 1px 2px rgba(27,42,58,.05), 0 2px 8px rgba(27,42,58,.04);
+  box-shadow:var(--shadow-1);
   backdrop-filter:none; -webkit-backdrop-filter:none;
 }
 
 .card{ position:relative; transition:border-color .15s, box-shadow .15s; }
-.card:hover{ border-color:#C7D2DD; box-shadow:0 2px 4px rgba(27,42,58,.06), 0 6px 16px rgba(27,42,58,.06); }
+.card:hover{ border-color:var(--card-hover-border); box-shadow:var(--shadow-2); }
 
 /* the old animated gradient is now the flat corporate blue */
-.grad{ background:var(--accent-hex); color:#fff; }
+.grad{ background:var(--accent-fill); color:#fff; }
 .grad-text{ color:var(--accent-hex); }
 
 .btn-primary{
-  background:var(--accent-hex); color:#fff;
+  background:var(--accent-fill); color:#fff;
   transition:background .15s, box-shadow .15s;
-  box-shadow:0 1px 2px rgba(10,110,209,.25);
+  box-shadow:0 1px 2px rgba(var(--accent-rgb),.25);
 }
-.btn-primary:hover{ background:var(--accent-h); box-shadow:0 2px 6px rgba(10,110,209,.3); }
+.btn-primary:hover{ background:var(--accent-fill-h); box-shadow:0 2px 6px rgba(var(--accent-rgb),.3); }
 
 /* sidenav */
 .nav-item{ color:var(--sub); transition:background .15s,color .15s; }
@@ -130,11 +213,26 @@ input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="
 
 .gborder::after{ content:none; }
 
+/* ---- status pills — theme-aware (used via src/lib/ui.ts) ---- */
+.pill-neutral{ background:var(--neutral-soft); color:var(--neutral-ink); --tw-ring-color:var(--border); }
+.pill-accent { background:var(--accent-soft);  color:var(--accent-hex); --tw-ring-color:color-mix(in srgb, var(--accent-hex) 25%, transparent); }
+.pill-info   { background:var(--info-soft);    color:var(--info);       --tw-ring-color:color-mix(in srgb, var(--info) 25%, transparent); }
+.pill-warn   { background:var(--warn-soft);    color:var(--warn);       --tw-ring-color:color-mix(in srgb, var(--warn) 30%, transparent); }
+.pill-good   { background:var(--good-soft);    color:var(--good);       --tw-ring-color:color-mix(in srgb, var(--good) 30%, transparent); }
+.pill-teal   { background:var(--teal-soft);    color:var(--teal);       --tw-ring-color:color-mix(in srgb, var(--teal) 25%, transparent); }
+.pill-cyan   { background:var(--cyan-soft);    color:var(--cyan);       --tw-ring-color:color-mix(in srgb, var(--cyan) 25%, transparent); }
+.pill-orange { background:var(--orange-soft);  color:var(--orange);     --tw-ring-color:color-mix(in srgb, var(--orange) 28%, transparent); }
+.pill-crit   { background:var(--crit-soft);    color:var(--crit);       --tw-ring-color:color-mix(in srgb, var(--crit) 25%, transparent); }
+
+/* theme toggle — show the icon for the mode you'd switch TO */
+html[data-theme="dark"] .tt-when-light{ display:none; }
+html:not([data-theme="dark"]) .tt-when-dark{ display:none; }
+
 /* entrance animation retired — instant, professional */
 .reveal{ opacity:1; }
 
-.dot-live{ box-shadow:0 0 0 0 rgba(22,128,60,.5); animation:pulse 2.4s infinite; }
-@keyframes pulse{ 70%{ box-shadow:0 0 0 6px rgba(22,128,60,0);} 100%{ box-shadow:0 0 0 0 rgba(22,128,60,0);} }
+.dot-live{ box-shadow:0 0 0 0 rgba(var(--good-rgb),.5); animation:pulse 2.4s infinite; }
+@keyframes pulse{ 70%{ box-shadow:0 0 0 6px rgba(var(--good-rgb),0);} 100%{ box-shadow:0 0 0 0 rgba(var(--good-rgb),0);} }
 
 .row{ transition:background .15s; }
 .row:hover{ background:var(--surface2); }
@@ -153,6 +251,6 @@ input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="
 }
 
 ::-webkit-scrollbar{ width:9px; height:9px; }
-::-webkit-scrollbar-thumb{ background:rgba(27,42,58,.16); border-radius:9px; }
-::-webkit-scrollbar-thumb:hover{ background:rgba(27,42,58,.26); }
+::-webkit-scrollbar-thumb{ background:var(--scrollbar); border-radius:9px; }
+::-webkit-scrollbar-thumb:hover{ background:var(--scrollbar-h); }
 ::-webkit-scrollbar-track{ background:transparent; }

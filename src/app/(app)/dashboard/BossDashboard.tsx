@@ -26,8 +26,8 @@ function progressPct(e: any): number {
 }
 
 function utilTone(pct: number) {
-  if (pct >= 85) return { bar: "#C0271C", text: "text-rose-300" };
-  if (pct >= 60) return { bar: "#B45309", text: "text-amber-300" };
+  if (pct >= 85) return { bar: "var(--crit)", text: "text-rose-300" };
+  if (pct >= 60) return { bar: "var(--warn)", text: "text-amber-300" };
   return { bar: "var(--accent-hex)", text: "text-sky-300" };
 }
 
@@ -150,7 +150,7 @@ export default async function BossDashboard({ profile }: { profile: { full_name:
               <CountUp value={k.value} />{k.suffix && <span className="text-lg ml-0.5">{k.suffix}</span>}
             </div>
             <div className="text-xs mt-1 font-medium text-slate-500 flex items-center gap-1.5">
-              {k.live && <span className="h-1.5 w-1.5 rounded-full bg-[#16803C] dot-live" />}{k.sub}
+              {k.live && <span className="h-1.5 w-1.5 rounded-full bg-[var(--good)] dot-live" />}{k.sub}
             </div>
           </div>
         ))}
@@ -242,7 +242,7 @@ export default async function BossDashboard({ profile }: { profile: { full_name:
       {/* live now */}
       {liveEvents.length > 0 && (
         <section className="reveal" style={{ animationDelay: ".34s" }}>
-          <h2 className="font-bold mb-3 flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-[#16803C] dot-live" />Live right now</h2>
+          <h2 className="font-bold mb-3 flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-[var(--good)] dot-live" />Live right now</h2>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {liveEvents.map((e: any) => {
               const pct = progressPct(e);
@@ -250,9 +250,9 @@ export default async function BossDashboard({ profile }: { profile: { full_name:
               return (
                 <Link key={e.id} href={`/events/${e.id}`} className="card gborder glass rounded-2xl p-5 flex items-center gap-4">
                   <svg className="ring" width="76" height="76" viewBox="0 0 84 84" style={{ "--ring-off": ringOff } as React.CSSProperties}>
-                    <circle cx="42" cy="42" r="34" fill="none" stroke="#F0F3F6" strokeWidth="7" />
+                    <circle cx="42" cy="42" r="34" fill="none" stroke="var(--surface2)" strokeWidth="7" />
                     <circle className="prog" cx="42" cy="42" r="34" fill="none" stroke="var(--accent-hex)" strokeWidth="7" strokeLinecap="round" transform="rotate(-90 42 42)" />
-                    <text x="42" y="47" textAnchor="middle" fill="#1B2A3A" fontSize="14" fontWeight="700">{Math.round(pct * 100)}%</text>
+                    <text x="42" y="47" textAnchor="middle" fill="var(--ink)" fontSize="14" fontWeight="700">{Math.round(pct * 100)}%</text>
                   </svg>
                   <div className="min-w-0">
                     <div className="font-semibold truncate">{e.name}</div>
@@ -290,7 +290,7 @@ export default async function BossDashboard({ profile }: { profile: { full_name:
                     <span className="text-[11px] text-slate-500 hidden md:flex items-center gap-1"><span className="ms" style={{ fontSize: 14 }}>group</span>{crewByEvent[e.id] ?? 0}</span>
                     <span className="text-xs text-slate-400 hidden lg:block">{fmtRange(e.live_start, e.live_end)}</span>
                     <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ring-1 flex items-center gap-1.5 ${b.cls}`}>
-                      {b.live && <span className="h-1.5 w-1.5 rounded-full bg-[#16803C] dot-live" />}{b.label}
+                      {b.live && <span className="h-1.5 w-1.5 rounded-full bg-[var(--good)] dot-live" />}{b.label}
                     </span>
                   </div>
                 </Link>

@@ -159,7 +159,7 @@ export default async function EventDetailPage({
               </span>
             )}
             <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ring-1 flex items-center gap-1.5 ${b.cls}`}>
-              {b.live && <span className="h-1.5 w-1.5 rounded-full bg-[#16803C] dot-live" />}{b.label}
+              {b.live && <span className="h-1.5 w-1.5 rounded-full bg-[var(--good)] dot-live" />}{b.label}
             </span>
             {canManage && !CLOSED.includes(event.status) && (
               <EventActions eventId={id} />

@@ -156,7 +156,7 @@ export default async function DashboardPage() {
                   <div className="flex items-center gap-3">
                     <span className="text-xs text-slate-400">{fmtRange(e.live_start, e.live_end)}</span>
                     <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ring-1 flex items-center gap-1.5 ${p.cls}`}>
-                      {p.live && <span className="h-1.5 w-1.5 rounded-full bg-[#16803C] dot-live" />}{p.label}
+                      {p.live && <span className="h-1.5 w-1.5 rounded-full bg-[var(--good)] dot-live" />}{p.label}
                     </span>
                   </div>
                 </Link>
@@ -170,14 +170,14 @@ export default async function DashboardPage() {
           {/* Live event */}
           {liveEvent ? (
             <Link href={`/events/${liveEvent.id}`} className="card gborder glass rounded-2xl p-5 reveal block" style={{ animationDelay: ".52s" }}>
-              <span className="text-xs font-semibold text-[#16803C] flex items-center gap-2 tracking-wide">
-                <span className="h-1.5 w-1.5 rounded-full bg-[#16803C] dot-live" />LIVE NOW
+              <span className="text-xs font-semibold text-[var(--good)] flex items-center gap-2 tracking-wide">
+                <span className="h-1.5 w-1.5 rounded-full bg-[var(--good)] dot-live" />LIVE NOW
               </span>
               <div className="flex items-center gap-4 mt-3">
                 <svg className="ring" width="84" height="84" viewBox="0 0 84 84" style={{ "--ring-off": ringOff } as React.CSSProperties}>
-                  <circle cx="42" cy="42" r="34" fill="none" stroke="#F0F3F6" strokeWidth="7" />
+                  <circle cx="42" cy="42" r="34" fill="none" stroke="var(--surface2)" strokeWidth="7" />
                   <circle className="prog" cx="42" cy="42" r="34" fill="none" stroke="var(--accent-hex)" strokeWidth="7" strokeLinecap="round" transform="rotate(-90 42 42)" />
-                  <text x="42" y="47" textAnchor="middle" fill="#1B2A3A" fontSize="15" fontWeight="700">{Math.round(pct * 100)}%</text>
+                  <text x="42" y="47" textAnchor="middle" fill="var(--ink)" fontSize="15" fontWeight="700">{Math.round(pct * 100)}%</text>
                 </svg>
                 <div>
                   <div className="font-semibold">{liveEvent.name}</div>

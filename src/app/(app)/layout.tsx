@@ -3,6 +3,7 @@ import { getProfile } from "@/lib/dal";
 import { createClient } from "@/lib/supabase/server";
 import Sidebar from "@/components/Sidebar";
 import NotificationsBell from "@/components/NotificationsBell";
+import ThemeToggle from "@/components/ThemeToggle";
 import { signOut } from "./actions";
 
 export default async function AppLayout({
@@ -39,29 +40,14 @@ export default async function AppLayout({
           </span>
         </Link>
 
-        {/* global search — lands on the events list filtered by the term */}
-        <form action="/events" method="get" className="flex-1 max-w-xl hidden md:flex">
-          <div className="w-full flex items-center gap-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg px-3 py-1.5 focus-within:border-[var(--accent-hex)]">
-            <span className="ms text-[var(--faint)]" style={{ fontSize: 18 }}>search</span>
-            <input
-              name="q"
-              type="text"
-              placeholder="Search events…"
-              autoComplete="off"
-              className="bg-transparent outline-none text-sm w-full placeholder:text-[var(--faint)]"
-            />
-          </div>
-        </form>
+        <div className="flex-1" />
 
-        <div className="flex-1 md:hidden" />
-
+        {/* right cluster: actions, then a divider, then the icon trio flush right */}
         <div className="flex items-center gap-2.5">
           <div className="hidden md:flex items-center gap-2 border border-[var(--border)] rounded-lg px-3 py-1.5">
             <span className="h-1.5 w-1.5 rounded-full bg-[var(--good)] dot-live" />
             <span className="text-xs text-[var(--sub)] font-medium num">{live ?? 0} live</span>
           </div>
-
-          <NotificationsBell items={notifications} unread={unread ?? 0} />
 
           {canCreate && (
             <Link
@@ -72,14 +58,22 @@ export default async function AppLayout({
             </Link>
           )}
 
-          <form action={signOut}>
-            <button
-              className="h-9 w-9 grid place-items-center rounded-lg border border-transparent text-[var(--sub)] hover:bg-[var(--surface2)] hover:text-[var(--ink)] transition"
-              title="Sign out"
-            >
-              <span className="ms" style={{ fontSize: 20 }}>logout</span>
-            </button>
-          </form>
+          <div className="h-6 w-px bg-[var(--border)] mx-1 hidden sm:block" aria-hidden />
+
+          <div className="flex items-center gap-1">
+            <ThemeToggle />
+
+            <NotificationsBell items={notifications} unread={unread ?? 0} />
+
+            <form action={signOut}>
+              <button
+                className="h-9 w-9 grid place-items-center rounded-lg cursor-pointer text-[var(--sub)] hover:bg-[var(--surface2)] hover:text-[var(--ink)] transition"
+                title="Sign out"
+              >
+                <span className="ms" style={{ fontSize: 20 }}>logout</span>
+              </button>
+            </form>
+          </div>
         </div>
       </header>
 

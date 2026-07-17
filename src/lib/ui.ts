@@ -8,21 +8,22 @@ export const ROLE_LABEL: Record<string, string> = {
 
 type Badge = { label: string; cls: string; live?: boolean };
 
-// Light enterprise status pills — soft tint fill, dark semantic text.
+// Status pills — soft tint fill, semantic text. The pill-* classes live in
+// globals.css and resolve through theme tokens, so they work in both themes.
 export const EVENT_STATUS: Record<string, Badge> = {
-  draft: { label: "Draft", cls: "bg-[#E8EDF2] text-[#46596B] ring-[#DCE3EA]" },
-  sent_to_warehouse: { label: "Requested", cls: "bg-[#EAF4FC] text-[#0A6ED1] ring-[#0A6ED1]/20" },
-  prepared: { label: "Prepared", cls: "bg-[#E5EEFB] text-[#1D4ED8] ring-[#1D4ED8]/20" },
-  shipped: { label: "Shipped", cls: "bg-[#FCF3E7] text-[#B25E09] ring-[#B25E09]/25" },
-  received_on_site: { label: "On site", cls: "bg-[#E6F4F1] text-[#0F766E] ring-[#0F766E]/20" },
-  in_progress: { label: "Live", cls: "bg-[#EBF7EF] text-[#16803C] ring-[#16803C]/25", live: true },
-  returning: { label: "Returning", cls: "bg-[#E5F3F8] text-[#0E7490] ring-[#0E7490]/20" },
-  reconciliation: { label: "Checking returns", cls: "bg-[#FBEFE7] text-[#C2410C] ring-[#C2410C]/20" },
-  archived: { label: "Done", cls: "bg-[#E8EDF2] text-[#46596B] ring-[#DCE3EA]" },
-  cancelled: { label: "Cancelled", cls: "bg-[#FBEEED] text-[#C0271C] ring-[#C0271C]/20" },
+  draft: { label: "Draft", cls: "pill-neutral" },
+  sent_to_warehouse: { label: "Requested", cls: "pill-accent" },
+  prepared: { label: "Prepared", cls: "pill-info" },
+  shipped: { label: "Shipped", cls: "pill-warn" },
+  received_on_site: { label: "On site", cls: "pill-teal" },
+  in_progress: { label: "Live", cls: "pill-good", live: true },
+  returning: { label: "Returning", cls: "pill-cyan" },
+  reconciliation: { label: "Checking returns", cls: "pill-orange" },
+  archived: { label: "Done", cls: "pill-neutral" },
+  cancelled: { label: "Cancelled", cls: "pill-crit" },
 };
 export function statusBadge(s: string): Badge {
-  return EVENT_STATUS[s] ?? { label: s, cls: "bg-[#E8EDF2] text-[#46596B] ring-[#DCE3EA]" };
+  return EVENT_STATUS[s] ?? { label: s, cls: "pill-neutral" };
 }
 
 type EventTimes = { status?: string | null; live_end?: string | null; demontage_end?: string | null };
@@ -41,7 +42,7 @@ export function isOverdue(e: EventTimes, now: number = Date.now()): boolean {
   return end != null && end < now;
 }
 
-export const OVERDUE_BADGE: Badge = { label: "Overdue", cls: "bg-[#FCF3E7] text-[#B25E09] ring-[#B25E09]/25" };
+export const OVERDUE_BADGE: Badge = { label: "Overdue", cls: "pill-warn" };
 
 // Status pill that accounts for a Live event that has run past its scheduled end.
 export function eventBadge(e: EventTimes): Badge {
@@ -49,12 +50,12 @@ export function eventBadge(e: EventTimes): Badge {
 }
 
 const SOURCE: Record<string, Badge> = {
-  warehouse: { label: "warehouse", cls: "bg-[#F0F3F6] text-[#566B80] ring-[#DCE3EA]" },
-  transfer: { label: "transfer", cls: "bg-[#EAF4FC] text-[#0A6ED1] ring-[#0A6ED1]/20" },
-  rental: { label: "rental", cls: "bg-[#FCF3E7] text-[#B25E09] ring-[#B25E09]/25" },
+  warehouse: { label: "warehouse", cls: "pill-neutral" },
+  transfer: { label: "transfer", cls: "pill-accent" },
+  rental: { label: "rental", cls: "pill-warn" },
 };
 export function sourceBadge(s: string): Badge {
-  return SOURCE[s] ?? { label: s, cls: "bg-[#E8EDF2] text-[#46596B] ring-[#DCE3EA]" };
+  return SOURCE[s] ?? { label: s, cls: "pill-neutral" };
 }
 
 // Where in the flow a loss happened, and why.
@@ -67,9 +68,9 @@ export const MISSING_PHASE: Record<string, { label: string; icon: string }> = {
 export const MISSING_REASON: Record<string, string> = { missing: "Missing", lost: "Lost", damaged: "Damaged" };
 
 export function missingStatusBadge(s: string): Badge {
-  return s === "found" ? { label: "Found", cls: "bg-[#EBF7EF] text-[#16803C] ring-[#16803C]/25" }
-    : s === "written_off" ? { label: "Written off", cls: "bg-[#E8EDF2] text-[#46596B] ring-[#DCE3EA]" }
-    : { label: "Open", cls: "bg-[#FBEEED] text-[#C0271C] ring-[#C0271C]/20" };
+  return s === "found" ? { label: "Found", cls: "pill-good" }
+    : s === "written_off" ? { label: "Written off", cls: "pill-neutral" }
+    : { label: "Open", cls: "pill-crit" };
 }
 
 export function fmtDate(d?: string | null): string {
