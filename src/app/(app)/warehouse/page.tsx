@@ -1,13 +1,9 @@
 import { getProfile } from "@/lib/dal";
 import { createClient } from "@/lib/supabase/server";
-import { addEquipment } from "./actions";
 import OutBadge from "./OutBadge";
 import DeleteEquipmentButton from "./DeleteEquipmentButton";
 import WarehouseToolbar from "./WarehouseToolbar";
-import NumberInput from "@/components/NumberInput";
-
-const inputCls =
-  "w-full rounded-xl glass px-3.5 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500 placeholder:text-slate-500";
+import AddEquipmentForm from "./AddEquipmentForm";
 
 export default async function WarehousePage({
   searchParams,
@@ -60,6 +56,13 @@ export default async function WarehousePage({
   const byCat: Record<string, any[]> = {};
   for (const e of shown) (byCat[e.category] ??= []).push(e);
 
+  // Existing categories (with item counts) feed the add-form's picker.
+  const catCounts: Record<string, number> = {};
+  for (const e of equipment) catCounts[e.category] = (catCounts[e.category] ?? 0) + 1;
+  const categories = Object.entries(catCounts)
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
   return (
     <div className="max-w-5xl mx-auto space-y-5">
       <div className="reveal" style={{ animationDelay: ".06s" }}>
@@ -71,23 +74,7 @@ export default async function WarehousePage({
 
       <WarehouseToolbar />
 
-      {canEdit && (
-        <form action={addEquipment} className="card glass rounded-2xl p-4 grid sm:grid-cols-6 gap-3 items-end reveal" style={{ animationDelay: ".1s" }}>
-          <div className="sm:col-span-2">
-            <label className="block text-xs font-semibold text-slate-300 mb-1">Name</label>
-            <input name="name" className={inputCls} placeholder="e.g. Line-array speakers" />
-          </div>
-          <div><label className="block text-xs font-semibold text-slate-300 mb-1">Category</label>
-            <input name="category" className={inputCls} placeholder="Speakers" /></div>
-          <div><label className="block text-xs font-semibold text-slate-300 mb-1">Qty</label>
-            <NumberInput name="total_quantity" min="0" defaultValue={0} className={inputCls} /></div>
-          <div><label className="block text-xs font-semibold text-slate-300 mb-1">Importance</label>
-            <select name="importance" className={inputCls} defaultValue="normal">
-              <option value="normal">Normal</option><option value="critical">Critical</option>
-            </select></div>
-          <button className="btn-primary grad text-white text-sm font-semibold rounded-xl px-4 py-2.5">Add</button>
-        </form>
-      )}
+      {canEdit && <AddEquipmentForm categories={categories} />}
 
       {Object.entries(byCat).map(([cat, items], ci) => (
         <section key={cat} className="card glass rounded-2xl overflow-hidden reveal" style={{ animationDelay: `${0.14 + ci * 0.04}s` }}>
