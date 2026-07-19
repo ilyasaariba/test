@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getProfile } from "@/lib/dal";
 import { createClient } from "@/lib/supabase/server";
 import { fmtDMY } from "@/lib/ui";
+import { isAged } from "@/lib/historyWindow";
 import PageHeader from "@/components/PageHeader";
 
 const T: Record<string, { label: string; cls: string; dot: string }> = {
@@ -53,7 +54,13 @@ export default async function TransferRecordPage() {
     .from("transfers")
     .select("id,quantity,requested_quantity,received_quantity,status,from_event_id,from_event_name,to_event_name,equipment_name,requested_by_name,decided_by_name,created_at,decided_at,received_at,note")
     .order("created_at", { ascending: false });
-  const list = transfers ?? [];
+  // Transfers that finished (delivered/refused/cancelled) more than 24h ago live
+  // in History now — keep only active + recently-finished ones on the record.
+  const list = (transfers ?? []).filter((t: any) => {
+    if (t.status === "completed") return !isAged(t.received_at);
+    if (t.status === "refused" || t.status === "cancelled") return !isAged(t.decided_at);
+    return true;
+  });
 
   const completed = list.filter((t: any) => t.status === "completed").length;
   const active = list.filter((t: any) => ["requested", "sent", "planned", "received"].includes(t.status)).length;

@@ -1,5 +1,6 @@
 import { getProfile } from "@/lib/dal";
 import { createClient } from "@/lib/supabase/server";
+import { isAged } from "@/lib/historyWindow";
 import TaskList from "./TaskList";
 import PageHeader from "@/components/PageHeader";
 
@@ -10,13 +11,14 @@ export default async function TasksPage() {
 
   let query = supabase
     .from("tasks")
-    .select("id,title,description,type,status,due_time,assigned_by,transfer_id, events(name), assignee:app_users!tasks_assigned_to_fkey(full_name), transfers(requested_quantity,quantity,status,equipment_name,from_event_name,to_event_name)")
+    .select("id,title,description,type,status,due_time,done_at,assigned_by,transfer_id, events(name), assignee:app_users!tasks_assigned_to_fkey(full_name), transfers(requested_quantity,quantity,status,equipment_name,from_event_name,to_event_name)")
     .order("due_time", { ascending: true });
   if (mine) query = query.eq("assigned_to", profile.id);
 
   const { data } = await query;
   const isAdmin = profile.role === "admin";
-  const tasks = (data ?? []).map((t: any) => ({
+  // Tasks done more than 24h ago have moved to History — drop them from the page.
+  const tasks = (data ?? []).filter((t: any) => !(t.status === "done" && isAged(t.done_at))).map((t: any) => ({
     id: t.id,
     title: t.title,
     description: t.description,

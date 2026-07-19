@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getProfile } from "@/lib/dal";
 import { createClient } from "@/lib/supabase/server";
+import { isAged } from "@/lib/historyWindow";
 import MissingBoard from "./MissingBoard";
 
 export default async function MissingPage() {
@@ -12,13 +13,16 @@ export default async function MissingPage() {
 
   const [{ data: rows }, { data: equip }, { data: evs }] = await Promise.all([
     supabase.from("missing_items")
-      .select("id,quantity,is_critical,status,phase,reason,location,notes,reported_at, equipment(name), events(name), reporter:app_users!missing_items_reported_by_fkey(full_name)")
+      .select("id,quantity,is_critical,status,phase,reason,location,notes,reported_at,resolved_at, equipment(name), events(name), reporter:app_users!missing_items_reported_by_fkey(full_name)")
       .order("reported_at", { ascending: false }),
     supabase.from("equipment").select("id,name,importance").order("name"),
     supabase.from("events").select("id,name,status").not("status", "in", "(archived,cancelled)").order("live_start", { ascending: false }),
   ]);
 
-  const items = (rows ?? []).map((r: any) => ({
+  // Missing items resolved (found / written off) over 24h ago have moved to History.
+  const items = (rows ?? [])
+    .filter((r: any) => !(["found", "written_off"].includes(r.status) && isAged(r.resolved_at)))
+    .map((r: any) => ({
     id: r.id,
     equipment: r.equipment?.name ?? "—",
     quantity: r.quantity,

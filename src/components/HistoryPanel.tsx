@@ -5,9 +5,12 @@ import { getPageHistory, type HistoryItem } from "@/app/(app)/history";
 
 function ago(iso: string): string {
   const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
-  if (s < 60) return "just now";
   const m = Math.floor(s / 60); if (m < 60) return `${m}m ago`;
-  const h = Math.floor(m / 60); return `${h}h ago`;
+  const h = Math.floor(m / 60); if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24); if (d < 7) return `${d}d ago`;
+  const w = Math.floor(d / 7); if (d < 30) return `${w}w ago`;
+  const mo = Math.floor(d / 30); if (mo < 12) return `${mo}mo ago`;
+  return `${Math.floor(d / 365)}y ago`;
 }
 
 // Collapsed by default at the bottom of every page. On first open it loads the
@@ -45,7 +48,7 @@ export default function HistoryPanel() {
         <span className="flex items-center gap-2 text-sm font-semibold text-[var(--sub)]">
           <span className="ms" style={{ fontSize: 18 }}>history</span>
           History
-          <span className="text-xs text-[var(--faint)] font-normal">· last 24 hours{loaded ? ` · ${items.length}` : ""}</span>
+          <span className="text-xs text-[var(--faint)] font-normal">· archive of finished work{loaded ? ` · ${items.length}` : ""}</span>
         </span>
         <span className="ms text-[var(--faint)] transition-transform" style={{ fontSize: 20, transform: open ? "rotate(180deg)" : "none" }}>expand_more</span>
       </button>
@@ -53,7 +56,7 @@ export default function HistoryPanel() {
       {open && (
         <div className="mt-2 rounded-xl glass overflow-hidden">
           <div className="flex items-center justify-between px-4 py-2.5 border-b border-[var(--border2)]">
-            <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--faint)]">Completed in the last 24 hours</span>
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--faint)]">Finished &amp; archived · moves here 24h after it ends</span>
             <button onClick={refresh} disabled={loading}
               className="text-[11px] font-semibold text-[var(--accent-hex)] hover:underline flex items-center gap-1 disabled:opacity-50">
               <span className="ms" style={{ fontSize: 14 }}>refresh</span>Refresh
@@ -67,7 +70,8 @@ export default function HistoryPanel() {
           ) : items.length === 0 ? (
             <div className="px-4 py-8 text-center">
               <span className="ms text-[var(--faint)]" style={{ fontSize: 30 }}>inbox</span>
-              <p className="text-sm text-[var(--sub)] mt-1">Nothing was completed in the last 24 hours.</p>
+              <p className="text-sm text-[var(--sub)] mt-1">Nothing archived yet.</p>
+              <p className="text-xs text-[var(--faint)] mt-1">Finished tasks, transfers and events move here automatically 24 hours after they end.</p>
             </div>
           ) : (
             <div className="divide-y divide-[var(--border2)] max-h-[420px] overflow-auto">

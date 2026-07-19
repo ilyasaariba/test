@@ -2,6 +2,7 @@
 
 import { getProfile } from "@/lib/dal";
 import { createClient } from "@/lib/supabase/server";
+import { agedCutoffISO } from "@/lib/historyWindow";
 
 export type HistoryItem = {
   id: string;
@@ -12,34 +13,34 @@ export type HistoryItem = {
   at: string;     // ISO timestamp of when it was completed
 };
 
-// Everything that got finished in the last 24 hours, across the app — done
-// tasks, delivered/refused transfers, resolved missing gear, archived events.
-// Fetched on demand (when the user opens the History panel), so it costs
-// nothing on a normal page load.
+// The permanent History archive: everything that finished at least 24 hours
+// ago — done tasks, delivered/refused transfers, resolved missing gear,
+// archived events — kept for all time, newest first. Fetched on demand (when
+// the user opens the History panel), so it costs nothing on a normal page load.
 export async function getPageHistory(): Promise<HistoryItem[]> {
   const profile = await getProfile();
   const sb = await createClient();
-  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const cutoff = agedCutoffISO(); // finished at or before this → in History
 
   // technicians only see their own completed tasks; everyone sees the rest
   let doneTasks = sb.from("tasks")
     .select("id,title,type,done_at, events(name)")
-    .eq("status", "done").gte("done_at", since).order("done_at", { ascending: false }).limit(40);
+    .eq("status", "done").lte("done_at", cutoff).order("done_at", { ascending: false }).limit(100);
   if (profile.role === "technician") doneTasks = doneTasks.eq("assigned_to", profile.id);
 
   const [tasksRes, trDone, trRej, missRes, archRes] = await Promise.all([
     doneTasks,
     sb.from("transfers")
       .select("id,equipment_name,quantity,requested_quantity,from_event_id,from_event_name,to_event_name,received_at")
-      .eq("status", "completed").gte("received_at", since).order("received_at", { ascending: false }).limit(40),
+      .eq("status", "completed").lte("received_at", cutoff).order("received_at", { ascending: false }).limit(100),
     sb.from("transfers")
       .select("id,equipment_name,quantity,requested_quantity,from_event_name,to_event_name,status,decided_at")
-      .in("status", ["refused", "cancelled"]).gte("decided_at", since).order("decided_at", { ascending: false }).limit(40),
+      .in("status", ["refused", "cancelled"]).lte("decided_at", cutoff).order("decided_at", { ascending: false }).limit(100),
     sb.from("missing_items")
       .select("id,quantity,status,resolved_at, equipment(name), events(name)")
-      .in("status", ["found", "written_off"]).gte("resolved_at", since).order("resolved_at", { ascending: false }).limit(40),
+      .in("status", ["found", "written_off"]).lte("resolved_at", cutoff).order("resolved_at", { ascending: false }).limit(100),
     sb.from("event_archives")
-      .select("event_name,total_units,archived_at").gte("archived_at", since).order("archived_at", { ascending: false }).limit(40),
+      .select("event_name,total_units,archived_at").lte("archived_at", cutoff).order("archived_at", { ascending: false }).limit(100),
   ]);
 
   const items: HistoryItem[] = [];
@@ -106,5 +107,5 @@ export async function getPageHistory(): Promise<HistoryItem[]> {
   return items
     .filter((it) => it.at)
     .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
-    .slice(0, 40);
+    .slice(0, 100);
 }

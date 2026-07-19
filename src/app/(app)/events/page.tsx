@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getProfile } from "@/lib/dal";
 import { createClient } from "@/lib/supabase/server";
 import { eventBadge, fmtRange } from "@/lib/ui";
+import { agedCutoffISO } from "@/lib/historyWindow";
 import EventsToolbar from "./EventsToolbar";
 import PageHeader from "@/components/PageHeader";
 
@@ -14,6 +15,11 @@ export default async function EventsPage({
   const profile = await getProfile();
   const supabase = await createClient();
   const isTech = profile.role === "technician";
+
+  // Events archived more than 24h ago have moved to History — keep them off the list.
+  const { data: agedArch } = await supabase
+    .from("event_archives").select("event_id").lte("archived_at", agedCutoffISO());
+  const agedIds = new Set((agedArch ?? []).map((r: any) => r.event_id));
 
   let events: any[] = [];
   if (isTech) {
@@ -33,6 +39,7 @@ export default async function EventsPage({
     const { data } = await query;
     events = data ?? [];
   }
+  events = events.filter((e: any) => !agedIds.has(e.id));
 
   const canCreate = profile.role === "engineer" || profile.role === "admin";
   const filtered = !!(q || status);
