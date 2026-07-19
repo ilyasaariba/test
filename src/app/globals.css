@@ -228,6 +228,9 @@ input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="
 html[data-theme="dark"] .tt-when-light{ display:none; }
 html:not([data-theme="dark"]) .tt-when-dark{ display:none; }
 
+/* accordion (<details>) chevron flips when the section is open */
+details[open] .acc-chevron{ transform:rotate(180deg); }
+
 /* entrance animation retired — instant, professional */
 .reveal{ opacity:1; }
 

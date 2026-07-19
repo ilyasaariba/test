@@ -14,6 +14,9 @@ export default async function TasksPage() {
     .select("id,title,description,type,status,due_time,done_at,assigned_by,transfer_id, events(name), assignee:app_users!tasks_assigned_to_fkey(full_name), transfers(requested_quantity,quantity,status,equipment_name,from_event_name,to_event_name)")
     .order("due_time", { ascending: true });
   if (mine) query = query.eq("assigned_to", profile.id);
+  // Managers (engineer/admin) track transfers on the Transfer Record page, not here —
+  // only the technician who has to carry one out sees it as a task.
+  else query = query.neq("type", "transfer");
 
   const { data } = await query;
   const isAdmin = profile.role === "admin";
@@ -47,7 +50,7 @@ export default async function TasksPage() {
           title={mine ? "My tasks" : "Tasks"}
           sub={<>{mine
             ? "Jobs assigned to you by the Engineer — start them and mark them done."
-            : "Jobs the Engineer assigns to technicians (split/distribute gear, transfer tasks)."} · {tasks.length} total</>}
+            : "Jobs the Engineer assigns to technicians on site. Transfers live on the Transfer Record."} · {tasks.length} total</>}
         />
       </div>
 

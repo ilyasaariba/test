@@ -24,6 +24,73 @@ function Stat({ label, value, tone }: { label: string; value: number; tone: stri
   );
 }
 
+// One transfer, shown inside its destination-event group (so the route only
+// needs to name the source — the destination is the group title).
+function TransferRow({ t }: { t: any }) {
+  const st = T[t.status] ?? T.planned;
+  const fromWarehouse = !t.from_event_id;
+  const req = t.requested_quantity ?? t.quantity;
+  const shipped = ["sent", "received", "completed"].includes(t.status);
+  const arrived = t.status === "completed";
+  const refusedT = t.status === "refused";
+  const cancelledT = t.status === "cancelled";
+  const movedQty = t.quantity ?? req;
+  const recvQty = t.received_quantity ?? movedQty;
+  const partial = shipped && movedQty < req;
+
+  return (
+    <div className="px-4 py-4">
+      <div className="flex items-start gap-3">
+        <div className={`h-11 w-11 rounded-xl grid place-items-center shrink-0 ${fromWarehouse ? "bg-sky-500/15 text-sky-300" : "bg-fuchsia-500/15 text-fuchsia-300"}`}>
+          <span className="ms" style={{ fontSize: 22 }}>{fromWarehouse ? "warehouse" : "swap_horiz"}</span>
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-2">
+            <div className="font-semibold">{req}× {t.equipment_name ?? "equipment"}</div>
+            <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ring-1 flex items-center gap-1.5 shrink-0 ${st.cls}`}>
+              {(t.status === "sent" || t.status === "requested") && <span className={`h-1.5 w-1.5 rounded-full ${st.dot} dot-live`} />}
+              {st.label}
+            </span>
+          </div>
+          <div className="text-xs text-slate-400 mt-1 flex items-center gap-1">
+            <span className="ms text-slate-500" style={{ fontSize: 14 }}>input</span>
+            from <span className="font-medium text-slate-300">{fromWarehouse ? "Warehouse" : (t.from_event_name ?? "—")}</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-3.5 pt-3.5 border-t border-white/10 flex flex-col sm:flex-row gap-3 sm:gap-2">
+        <Step done icon="edit_note" title="Requested"
+          lines={[t.requested_by_name ? `by ${t.requested_by_name}` : null, `${req}× asked`, fmtDMY(t.created_at)]}
+          tone="bg-fuchsia-500/15 text-fuchsia-300" />
+        {refusedT ? (
+          <Step done icon="block" title="Refused"
+            lines={[t.decided_by_name ? `by ${t.decided_by_name}` : null, fmtDMY(t.decided_at)]}
+            tone="bg-rose-500/15 text-rose-300" />
+        ) : cancelledT ? (
+          <Step done icon="cancel" title="Cancelled" lines={[fmtDMY(t.decided_at ?? t.created_at)]}
+            tone="bg-slate-500/15 text-slate-300" />
+        ) : (
+          <Step done={shipped} icon="local_shipping" title="Shipped"
+            lines={[t.decided_by_name ? `by ${t.decided_by_name}` : null, shipped ? `${movedQty}× sent${partial ? ` of ${req}` : ""}` : null, shipped ? fmtDMY(t.decided_at) : "pending"]}
+            tone="bg-sky-500/15 text-sky-300" />
+        )}
+        {!refusedT && !cancelledT && (
+          <Step done={arrived} icon="check_circle" title="Arrived"
+            lines={[arrived ? `${recvQty}× received` : null, arrived ? fmtDMY(t.received_at) : "awaiting confirmation"]}
+            tone="bg-emerald-500/15 text-emerald-300" />
+        )}
+      </div>
+
+      {t.note && (
+        <div className="mt-3 text-xs text-slate-400 rounded-lg bg-white/5 ring-1 ring-white/10 px-3 py-2 flex items-start gap-1.5">
+          <span className="ms text-slate-500" style={{ fontSize: 14 }}>sticky_note_2</span>{t.note}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // One node of the requested → shipped → arrived timeline.
 function Step({ done, active, icon, title, lines, tone = "" }: {
   done: boolean; active?: boolean; icon: string; title: string; lines: (string | null)[]; tone?: string;
@@ -66,6 +133,22 @@ export default async function TransferRecordPage() {
   const active = list.filter((t: any) => ["requested", "sent", "planned", "received"].includes(t.status)).length;
   const refused = list.filter((t: any) => ["refused", "cancelled"].includes(t.status)).length;
 
+  // Group every move by the event it's going TO, so the page collapses to a list
+  // of event titles you expand for the detail (list is already newest-first).
+  const groupsMap = new Map<string, any[]>();
+  for (const t of list) {
+    const key = t.to_event_name ?? "—";
+    const arr = groupsMap.get(key) ?? [];
+    arr.push(t);
+    groupsMap.set(key, arr);
+  }
+  const groups = [...groupsMap.entries()].map(([eventName, items]) => ({
+    eventName,
+    items,
+    active: items.filter((t) => ["requested", "sent", "planned", "received"].includes(t.status)).length,
+    done: items.filter((t) => t.status === "completed").length,
+  }));
+
   return (
     <div className="max-w-4xl mx-auto space-y-5">
       <div className="reveal" style={{ animationDelay: ".06s" }}>
@@ -87,76 +170,28 @@ export default async function TransferRecordPage() {
 
       {list.length ? (
         <div className="space-y-3">
-          {list.map((t: any, i: number) => {
-            const st = T[t.status] ?? T.planned;
-            const fromWarehouse = !t.from_event_id;
-            const req = t.requested_quantity ?? t.quantity;
-            const shipped = ["sent", "received", "completed"].includes(t.status);
-            const arrived = t.status === "completed";
-            const refusedT = t.status === "refused";
-            const cancelledT = t.status === "cancelled";
-            const movedQty = t.quantity ?? req;
-            const recvQty = t.received_quantity ?? movedQty;
-            const partial = shipped && movedQty < req;
-
-            return (
-              <div key={t.id} className="card glass rounded-2xl p-4 reveal" style={{ animationDelay: `${0.14 + Math.min(i, 8) * 0.04}s` }}>
-                {/* header: equipment + route + status */}
-                <div className="flex items-start gap-3">
-                  <div className={`h-11 w-11 rounded-xl grid place-items-center shrink-0
-                    ${fromWarehouse ? "bg-sky-500/15 text-sky-300" : "bg-fuchsia-500/15 text-fuchsia-300"}`}>
-                    <span className="ms" style={{ fontSize: 22 }}>{fromWarehouse ? "warehouse" : "swap_horiz"}</span>
+          {groups.map((g) => (
+            <details key={g.eventName} className="card glass rounded-2xl overflow-hidden reveal">
+              <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden px-4 py-3.5 flex items-center justify-between gap-3 hover:bg-[var(--surface2)] transition">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="h-10 w-10 rounded-xl bg-[var(--accent-soft)] text-[var(--accent-hex)] grid place-items-center shrink-0">
+                    <span className="ms" style={{ fontSize: 20 }}>event</span>
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="font-semibold">{req}× {t.equipment_name ?? "equipment"}</div>
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ring-1 flex items-center gap-1.5 shrink-0 ${st.cls}`}>
-                        {(t.status === "sent" || t.status === "requested") && <span className={`h-1.5 w-1.5 rounded-full ${st.dot} dot-live`} />}
-                        {st.label}
-                      </span>
-                    </div>
-                    <div className="text-sm text-slate-300 mt-1 flex items-center gap-1.5 flex-wrap">
-                      <span className="font-medium">{fromWarehouse ? "Warehouse" : (t.from_event_name ?? "—")}</span>
-                      <span className="ms text-slate-500" style={{ fontSize: 16 }}>arrow_forward</span>
-                      <span className="font-medium">{t.to_event_name ?? "—"}</span>
+                  <div className="min-w-0">
+                    <div className="font-semibold truncate">{g.eventName}</div>
+                    <div className="text-xs text-slate-500">
+                      {g.items.length} move{g.items.length === 1 ? "" : "s"}
+                      {g.active ? ` · ${g.active} in progress` : ""}{g.done ? ` · ${g.done} done` : ""}
                     </div>
                   </div>
                 </div>
-
-                {/* timeline: requested → shipped/refused → arrived */}
-                <div className="mt-3.5 pt-3.5 border-t border-white/10 flex flex-col sm:flex-row gap-3 sm:gap-2">
-                  <Step
-                    done icon="edit_note" title="Requested"
-                    lines={[t.requested_by_name ? `by ${t.requested_by_name}` : null, `${req}× asked`, fmtDMY(t.created_at)]}
-                    tone="bg-fuchsia-500/15 text-fuchsia-300"
-                  />
-                  {refusedT ? (
-                    <Step done icon="block" title="Refused"
-                      lines={[t.decided_by_name ? `by ${t.decided_by_name}` : null, fmtDMY(t.decided_at)]}
-                      tone="bg-rose-500/15 text-rose-300" />
-                  ) : cancelledT ? (
-                    <Step done icon="cancel" title="Cancelled" lines={[fmtDMY(t.decided_at ?? t.created_at)]}
-                      tone="bg-slate-500/15 text-slate-300" />
-                  ) : (
-                    <Step done={shipped} icon="local_shipping" title="Shipped"
-                      lines={[t.decided_by_name ? `by ${t.decided_by_name}` : null, shipped ? `${movedQty}× sent${partial ? ` of ${req}` : ""}` : null, shipped ? fmtDMY(t.decided_at) : "pending"]}
-                      tone="bg-sky-500/15 text-sky-300" />
-                  )}
-                  {!refusedT && !cancelledT && (
-                    <Step done={arrived} icon="check_circle" title="Arrived"
-                      lines={[arrived ? `${recvQty}× received` : null, arrived ? fmtDMY(t.received_at) : "awaiting confirmation"]}
-                      tone="bg-emerald-500/15 text-emerald-300" />
-                  )}
-                </div>
-
-                {t.note && (
-                  <div className="mt-3 text-xs text-slate-400 rounded-lg bg-white/5 ring-1 ring-white/10 px-3 py-2 flex items-start gap-1.5">
-                    <span className="ms text-slate-500" style={{ fontSize: 14 }}>sticky_note_2</span>{t.note}
-                  </div>
-                )}
+                <span className="ms acc-chevron text-slate-400 transition-transform shrink-0" style={{ fontSize: 22 }}>expand_more</span>
+              </summary>
+              <div className="border-t border-white/10 divide-y divide-white/5">
+                {g.items.map((t: any) => <TransferRow key={t.id} t={t} />)}
               </div>
-            );
-          })}
+            </details>
+          ))}
         </div>
       ) : (
         <div className="card glass rounded-2xl px-5 py-12 text-center reveal" style={{ animationDelay: ".12s" }}>
