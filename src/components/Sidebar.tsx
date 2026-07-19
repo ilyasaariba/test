@@ -13,7 +13,6 @@ const NAV: Record<string, Section[]> = {
     { items: [
       { label: "Dashboard", href: "/dashboard", icon: "grid_view" },
       { label: "Events", href: "/events", icon: "event" },
-      { label: "Tasks", href: "/tasks", icon: "task_alt" },
     ]},
     { cap: "Inventory", items: [
       { label: "Warehouse", href: "/warehouse", icon: "inventory_2" },
@@ -25,7 +24,6 @@ const NAV: Record<string, Section[]> = {
     { items: [
       { label: "Dashboard", href: "/dashboard", icon: "grid_view" },
       { label: "Events", href: "/events", icon: "event" },
-      { label: "Tasks", href: "/tasks", icon: "task_alt" },
     ]},
     { cap: "Inventory", items: [
       { label: "Warehouse", href: "/warehouse", icon: "inventory_2" },

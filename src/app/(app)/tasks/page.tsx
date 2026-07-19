@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { getProfile } from "@/lib/dal";
 import { createClient } from "@/lib/supabase/server";
 import { isAged, agedCutoffISO } from "@/lib/historyWindow";
@@ -13,8 +14,10 @@ export default async function TasksPage({
 }) {
   const { view } = await searchParams;
   const profile = await getProfile();
+  // Tasks are a technician workspace (transfer prep & shipping jobs land here).
+  // Managers coordinate by phone / the Transfer Record — no tasks page for them.
+  if (profile.role !== "technician") redirect("/dashboard");
   const supabase = await createClient();
-  const mine = profile.role === "technician";
   const showHistory = view === "history";
 
   /* ================= HISTORY: tasks done 24h+ ago, kept forever ================= */
@@ -24,8 +27,7 @@ export default async function TasksPage({
       .select("id,title,description,type,status,due_time,done_at, events(name), assignee:app_users!tasks_assigned_to_fkey(full_name), transfers(quantity,requested_quantity,equipment_name,from_event_name,to_event_name)")
       .eq("status", "done").lte("done_at", agedCutoffISO())
       .order("done_at", { ascending: false });
-    if (mine) hq = hq.eq("assigned_to", profile.id);
-    else hq = hq.neq("type", "transfer");
+    hq = hq.eq("assigned_to", profile.id);
     const { data } = await hq;
     const old = data ?? [];
 
@@ -67,7 +69,6 @@ export default async function TasksPage({
                   </p>
                 )}
                 <p className="text-xs text-slate-500">
-                  {!mine && t.assignee?.full_name ? `Assigned to ${t.assignee.full_name} · ` : ""}
                   due {fmtDMY(t.due_time)} · completed {fmtDMY(t.done_at)}
                 </p>
               </div>
@@ -87,13 +88,9 @@ export default async function TasksPage({
     .from("tasks")
     .select("id,title,description,type,status,due_time,done_at,assigned_by,transfer_id, events(name), assignee:app_users!tasks_assigned_to_fkey(full_name), transfers(requested_quantity,quantity,status,equipment_name,from_event_name,to_event_name)")
     .order("due_time", { ascending: true });
-  if (mine) query = query.eq("assigned_to", profile.id);
-  // Managers (engineer/admin) track transfers on the Transfer Record page, not here —
-  // only the technician who has to carry one out sees it as a task.
-  else query = query.neq("type", "transfer");
+  query = query.eq("assigned_to", profile.id);
 
   const { data } = await query;
-  const isAdmin = profile.role === "admin";
   // Tasks done more than 24h ago have moved to History — drop them from the page.
   const tasks = (data ?? []).filter((t: any) => !(t.status === "done" && isAged(t.done_at))).map((t: any) => ({
     id: t.id,
@@ -104,8 +101,8 @@ export default async function TasksPage({
     eventName: t.events?.name ?? null,
     assigneeName: t.assignee?.full_name ?? null,
     dueTime: t.due_time,
-    // can the viewer edit/cancel this task? only its creator (or an admin)
-    canManage: isAdmin || t.assigned_by === profile.id,
+    // can the viewer edit/cancel this task? only its creator
+    canManage: t.assigned_by === profile.id,
     transferId: t.transfer_id ?? null,
     transfer: t.transfers ? {
       status: t.transfers.status,
@@ -121,10 +118,8 @@ export default async function TasksPage({
       <div className="reveal" style={{ animationDelay: ".06s" }}>
         <PageHeader
           icon="task_alt"
-          title={mine ? "My tasks" : "Tasks"}
-          sub={<>{mine
-            ? "Jobs assigned to you by the Engineer — start them and mark them done."
-            : "Jobs the Engineer assigns to technicians on site. Transfers live on the Transfer Record."} · {tasks.length} total</>}
+          title="My tasks"
+          sub={<>Jobs assigned to you — transfer shipments and on-site work. · {tasks.length} total</>}
           action={
             <Link href="/tasks?view=history" title="Tasks history"
               className="glass rounded-xl px-3.5 py-2 text-sm font-semibold flex items-center gap-1.5 hover:bg-[var(--surface2)] transition">
@@ -134,7 +129,7 @@ export default async function TasksPage({
         />
       </div>
 
-      <TaskList tasks={tasks} canAct={mine} showAssignee={!mine} />
+      <TaskList tasks={tasks} canAct showAssignee={false} />
     </div>
   );
 }
