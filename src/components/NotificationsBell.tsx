@@ -48,7 +48,7 @@ export default function NotificationsBell({ items, unread }: { items: Notif[]; u
     <div className="relative" ref={ref}>
       <button onClick={() => setOpen((o) => !o)}
         className="relative h-9 w-9 grid place-items-center rounded-lg cursor-pointer text-[var(--sub)] hover:bg-[var(--surface2)] hover:text-[var(--ink)] transition" title="Notifications">
-        <span className="ms" style={{ fontSize: 20 }}>notifications</span>
+        <span className={`ms ${unread > 0 ? "bell-live" : ""}`} style={{ fontSize: 20 }}>notifications</span>
         {unread > 0 && (
           <span className="absolute -top-0.5 -right-0.5 min-w-[17px] h-[17px] px-1 grid place-items-center rounded-full grad text-[10px] font-bold">{unread > 9 ? "9+" : unread}</span>
         )}

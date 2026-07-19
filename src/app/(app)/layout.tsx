@@ -34,7 +34,7 @@ export default async function AppLayout({
       {/* ---- top bar ---- */}
       <header className="h-14 shrink-0 bg-[var(--surface)] border-b border-[var(--border)] flex items-center gap-4 px-4 sticky top-0 z-30 max-lg:pl-16">
         <Link href="/dashboard" className="flex items-center gap-2.5 min-w-0">
-          <span className="h-8 w-8 rounded-lg grad grid place-items-center font-bold text-[11px] tracking-tight shrink-0">M212</span>
+          <span className="brand-badge h-8 w-8 rounded-lg grad grid place-items-center font-bold text-[11px] tracking-tight shrink-0">M212</span>
           <span className="font-semibold text-[15px] whitespace-nowrap">
             M212 <span className="text-[var(--sub)] font-normal">Logistics</span>
           </span>
