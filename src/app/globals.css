@@ -191,8 +191,8 @@ input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="
   backdrop-filter:none; -webkit-backdrop-filter:none;
 }
 
-.card{ position:relative; transition:border-color .15s, box-shadow .15s; }
-.card:hover{ border-color:var(--card-hover-border); box-shadow:var(--shadow-2); }
+.card{ position:relative; transition:border-color .15s, box-shadow .15s, transform .15s; }
+.card:hover{ border-color:var(--card-hover-border); box-shadow:var(--shadow-2); transform:translateY(-1px); }
 
 /* the old animated gradient is now the flat corporate blue */
 .grad{ background:var(--accent-fill); color:#fff; }
@@ -200,10 +200,11 @@ input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="
 
 .btn-primary{
   background:var(--accent-fill); color:#fff;
-  transition:background .15s, box-shadow .15s;
+  transition:background .15s, box-shadow .15s, transform .12s;
   box-shadow:0 1px 2px rgba(var(--accent-rgb),.25);
 }
-.btn-primary:hover{ background:var(--accent-fill-h); box-shadow:0 2px 6px rgba(var(--accent-rgb),.3); }
+.btn-primary:hover{ background:var(--accent-fill-h); box-shadow:0 2px 6px rgba(var(--accent-rgb),.3); transform:translateY(-1px); }
+.btn-primary:active{ transform:scale(.97); }
 
 /* sidenav */
 .nav-item{ color:var(--sub); transition:background .15s,color .15s; }
@@ -231,8 +232,12 @@ html:not([data-theme="dark"]) .tt-when-dark{ display:none; }
 /* accordion (<details>) chevron flips when the section is open */
 details[open] .acc-chevron{ transform:rotate(180deg); }
 
-/* entrance animation retired — instant, professional */
-.reveal{ opacity:1; }
+/* gentle entrance — pages stagger sections with inline animation-delay */
+.reveal{ animation:rise .5s cubic-bezier(.16,1,.3,1) both; }
+@keyframes rise{
+  from{ opacity:0; transform:translateY(8px) scale(.995); }
+  to{ opacity:1; transform:none; }
+}
 
 .dot-live{ box-shadow:0 0 0 0 rgba(var(--good-rgb),.5); animation:pulse 2.4s infinite; }
 @keyframes pulse{ 70%{ box-shadow:0 0 0 6px rgba(var(--good-rgb),0);} 100%{ box-shadow:0 0 0 0 rgba(var(--good-rgb),0);} }
@@ -247,10 +252,16 @@ details[open] .acc-chevron{ transform:rotate(180deg); }
 .barfill{ transform-origin:left; animation:growx .9s cubic-bezier(.16,1,.3,1) both; }
 @keyframes growx{ from{ transform:scaleX(0); } to{ transform:scaleX(1); } }
 
-.pop{ animation:none; }
+/* small zoom-in used by popovers/menus */
+.pop{ animation:popIn .16s ease-out both; }
+@keyframes popIn{
+  from{ opacity:0; transform:scale(.97) translateY(-3px); }
+  to{ opacity:1; transform:none; }
+}
 
 @media (prefers-reduced-motion: reduce){
-  .dot-live,.barfill,.ring circle.prog{ animation:none; }
+  .dot-live,.barfill,.ring circle.prog,.reveal,.pop{ animation:none; }
+  .card:hover,.btn-primary:hover,.btn-primary:active{ transform:none; }
 }
 
 ::-webkit-scrollbar{ width:9px; height:9px; }

@@ -42,7 +42,7 @@ export default function Dropdown({
       </button>
 
       {open && (
-        <div className="absolute z-30 mt-1 w-full rounded-lg p-1 bg-[var(--surface)] border border-[var(--border)] shadow-lg max-h-56 overflow-auto">
+        <div className="pop absolute z-30 mt-1 w-full rounded-lg p-1 bg-[var(--surface)] border border-[var(--border)] shadow-lg max-h-56 overflow-auto">
           {options.length === 0 && <p className="px-3 py-2 text-xs text-slate-500">No options.</p>}
           {options.map((o) => {
             const active = o.value === value;

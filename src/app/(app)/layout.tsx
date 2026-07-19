@@ -4,7 +4,6 @@ import { createClient } from "@/lib/supabase/server";
 import Sidebar from "@/components/Sidebar";
 import NotificationsBell from "@/components/NotificationsBell";
 import ThemeToggle from "@/components/ThemeToggle";
-import HistoryPanel from "@/components/HistoryPanel";
 import { signOut } from "./actions";
 
 export default async function AppLayout({
@@ -81,10 +80,7 @@ export default async function AppLayout({
       {/* ---- sidenav + content ---- */}
       <div className="flex-1 flex min-h-0">
         <Sidebar role={profile.role} fullName={profile.full_name} />
-        <main className="flex-1 min-w-0 px-5 lg:px-7 py-6 overflow-x-hidden">
-          {children}
-          <HistoryPanel />
-        </main>
+        <main className="flex-1 min-w-0 px-5 lg:px-7 py-6 overflow-x-hidden">{children}</main>
       </div>
     </div>
   );

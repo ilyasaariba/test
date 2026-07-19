@@ -56,7 +56,7 @@ export default function NotificationsBell({ items, unread }: { items: Notif[]; u
 
       {open && (
         <div
-          className="absolute right-0 mt-2 w-80 max-w-[90vw] rounded-xl bg-[var(--surface)] border border-[var(--border)] shadow-xl z-50 overflow-hidden">
+          className="pop absolute right-0 mt-2 w-80 max-w-[90vw] rounded-xl bg-[var(--surface)] border border-[var(--border)] shadow-xl z-50 overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border2)]">
             <span className="font-semibold text-sm">Notifications</span>
             {unread > 0 && (

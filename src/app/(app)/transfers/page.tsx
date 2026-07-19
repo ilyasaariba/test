@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getProfile } from "@/lib/dal";
 import { createClient } from "@/lib/supabase/server";
@@ -112,22 +113,27 @@ function Step({ done, active, icon, title, lines, tone = "" }: {
   );
 }
 
-export default async function TransferRecordPage() {
+export default async function TransferRecordPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ view?: string }>;
+}) {
+  const { view } = await searchParams;
   const profile = await getProfile();
   if (!["engineer", "admin", "boss"].includes(profile.role)) redirect("/dashboard");
+  const showHistory = view === "history";
 
   const supabase = await createClient();
   const { data: transfers } = await supabase
     .from("transfers")
     .select("id,quantity,requested_quantity,received_quantity,status,from_event_id,from_event_name,to_event_name,equipment_name,requested_by_name,decided_by_name,created_at,decided_at,received_at,note")
     .order("created_at", { ascending: false });
-  // Transfers that finished (delivered/refused/cancelled) more than 24h ago live
-  // in History now — keep only active + recently-finished ones on the record.
-  const list = (transfers ?? []).filter((t: any) => {
-    if (t.status === "completed") return !isAged(t.received_at);
-    if (t.status === "refused" || t.status === "cancelled") return !isAged(t.decided_at);
-    return true;
-  });
+  // A transfer is "aged" once it finished (delivered/refused/cancelled) more than
+  // 24h ago. Aged moves live in History; everything else is the current record.
+  const aged = (t: any) =>
+    (t.status === "completed" && isAged(t.received_at)) ||
+    ((t.status === "refused" || t.status === "cancelled") && isAged(t.decided_at));
+  const list = (transfers ?? []).filter((t: any) => (showHistory ? aged(t) : !aged(t)));
 
   const completed = list.filter((t: any) => t.status === "completed").length;
   const active = list.filter((t: any) => ["requested", "sent", "planned", "received"].includes(t.status)).length;
@@ -153,13 +159,25 @@ export default async function TransferRecordPage() {
     <div className="max-w-4xl mx-auto space-y-5">
       <div className="reveal" style={{ animationDelay: ".06s" }}>
         <PageHeader
-          icon="swap_horiz"
-          title="Transfer Record"
-          sub="Every equipment move — who asked, who shipped, from where to where, and when."
+          icon={showHistory ? "history" : "swap_horiz"}
+          title={showHistory ? "Transfer history" : "Transfer Record"}
+          sub={showHistory
+            ? `${list.length} finished move${list.length === 1 ? "" : "s"} — grouped by event, click one to open`
+            : "Every equipment move — who asked, who shipped, from where to where, and when."}
+          action={showHistory ? (
+            <Link href="/transfers" className="glass rounded-xl px-3.5 py-2 text-sm font-semibold flex items-center gap-1.5 hover:bg-[var(--surface2)] transition">
+              <span className="ms" style={{ fontSize: 18 }}>arrow_back</span> Current record
+            </Link>
+          ) : (
+            <Link href="/transfers?view=history" title="Transfer history"
+              className="glass rounded-xl px-3.5 py-2 text-sm font-semibold flex items-center gap-1.5 hover:bg-[var(--surface2)] transition">
+              <span className="ms" style={{ fontSize: 18 }}>history</span> History
+            </Link>
+          )}
         />
       </div>
 
-      {list.length > 0 && (
+      {list.length > 0 && !showHistory && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 reveal" style={{ animationDelay: ".1s" }}>
           <Stat label="Total" value={list.length} tone="" />
           <Stat label="In progress" value={active} tone="text-sky-300" />
@@ -195,10 +213,12 @@ export default async function TransferRecordPage() {
         </div>
       ) : (
         <div className="card glass rounded-2xl px-5 py-12 text-center reveal" style={{ animationDelay: ".12s" }}>
-          <span className="ms text-slate-600" style={{ fontSize: 40 }}>swap_horiz</span>
-          <p className="text-sm text-slate-300 font-medium mt-2">No transfers yet.</p>
+          <span className="ms text-slate-600" style={{ fontSize: 40 }}>{showHistory ? "history" : "swap_horiz"}</span>
+          <p className="text-sm text-slate-300 font-medium mt-2">{showHistory ? "No archived transfers yet." : "No transfers yet."}</p>
           <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
-            When an event requests gear from another event or the warehouse, every move is recorded here.
+            {showHistory
+              ? "Finished moves land here 24 hours after they're delivered or refused."
+              : "When an event requests gear from another event or the warehouse, every move is recorded here."}
           </p>
         </div>
       )}
